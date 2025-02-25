@@ -7,7 +7,6 @@ import peewee
 
 from utils import get_db
 from const import INPUT_JSONL_DIR_PATH, INPUT_CSV_DIR_PATH
-from models import BookFile
 
 
 class BookIO(peewee.Model):

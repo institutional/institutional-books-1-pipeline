@@ -5,6 +5,7 @@ import click
 from dotenv import load_dotenv
 
 import utils
+import commands.setup
 
 load_dotenv()
 utils.check_env()
@@ -16,7 +17,7 @@ def cli():
     pass
 
 
-# cli.add_command(commands.setup.setup)
+cli.add_command(commands.setup.setup)
 
 if __name__ == "__main__":
     cli()

@@ -67,3 +67,8 @@ DATETIME_SLUG = datetime_slug = slugify(
     datetime.datetime.utcnow().isoformat(sep=" ", timespec="minutes"),
 )
 """ Datetime slug. Hoisted at `const` level for convenience. """
+
+TABLES = {
+    "book_io": "BookIO",
+}
+""" Mapping: Table names to Model class name. """
