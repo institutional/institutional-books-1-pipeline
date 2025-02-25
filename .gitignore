@@ -1,0 +1,10 @@
+.DS_Store
+*.pyc
+*__tmp.py
+*.env
+TODO.txt
+*.jsonl
+*.json.tar.gz
+*.csv
+*.csv.tar.gz
+*.txt

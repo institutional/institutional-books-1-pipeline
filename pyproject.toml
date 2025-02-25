@@ -1,0 +1,40 @@
+[tool.poetry]
+name = "hlbooks-pipeline"
+version = "0.0.1"
+description = ""
+package-mode = false
+authors = ["Institutional Data Initiative at Harvard Law School Library"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+click = "^8.1.8"
+boto3 = "^1.37.0"
+python-dotenv = "^1.0.1"
+openai = "^1.64.0"
+python-slugify = "^8.0.4"
+peewee = "^3.17.9"
+transformers = "^4.49.0"
+torch = "^2.6.0"
+accelerate = "^1.4.0"
+more-itertools = "^10.6.0"
+scikit-learn = "^1.6.1"
+iso639-lang = "^2.6.0"
+langchain = "^0.3.19"
+spacy = "^3.8.4"
+pyfranc = "^0.2.3"
+polyglot = "^16.7.4"
+morfessor = "^2.0.6"
+pyicu = "^2.14"
+simhash = "^2.1.2"
+numpy = "1.26.4"
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
