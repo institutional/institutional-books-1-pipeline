@@ -25,7 +25,7 @@ class BookIO(peewee.Model):
     """ Class-level cache for the headers of "books.csv"."""
 
     class Meta:
-        table_name = "book"
+        table_name = "book_io"
         database = get_db()
 
     barcode = peewee.CharField(
