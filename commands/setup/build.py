@@ -351,7 +351,11 @@ def index_jsonl_file(jsonl_filepath: Path) -> bool:
     if entries_to_update:
         click.echo(f"💾 {len(entries_to_update)} records to update from {jsonl_filepath}")
         with utils.get_db().atomic():
-            BookIO.bulk_update(entries_to_update, batch_size=1000)
+            BookIO.bulk_update(
+                entries_to_update,
+                fields=[BookIO.tranche, BookIO.jsonl_file_number, BookIO.jsonl_offset],
+                batch_size=1000,
+            )
 
     if entries_to_create:
         click.echo(f"💾 {len(entries_to_create)} records to create from {jsonl_filepath}")
