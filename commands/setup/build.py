@@ -1,5 +1,6 @@
 import os
 import re
+import csv
 import json
 import gzip
 import multiprocessing
@@ -23,14 +24,15 @@ from const import (
     GRIN_TO_S3_BUCKET_NAMES_TO_TRANCHES,
     GRIN_TO_S3_BUCKET_VERSION_PREFIX,
 )
+import utils.pipeline_readiness
 
 
 @click.command("build")
 @click.option(
-    "--overwrite",
+    "--update",
     is_flag=True,
     default=False,
-    help="If set, overwrites existing entries.",
+    help="If set, updates existing entries.",
 )
 @click.option(
     "--tables-only",
@@ -51,7 +53,7 @@ from const import (
     help="Determines how many works can be spun up for multiprocessing tasks.",
 )
 def build(
-    overwrite: bool,
+    update: bool,
     tables_only: bool,
     max_parallel_downloads: int,
     max_workers: int,
@@ -59,7 +61,8 @@ def build(
     """
     Prepares the pipeline:
     - Creates database tables
-    - Downloads and indexes source files from the output of GRIN-TO-S3 that was saved on S3/R2.
+    - Downloads source files from the output of GRIN-TO-S3 that was saved on S3/R2
+    - Indexes individual records from both JSONL and CSV files so BookIO can perform random access
     """
     jsonl_gz_remote_filepaths = []
 
@@ -112,7 +115,7 @@ def build(
                 pull_and_unpack_jsonl_gz_file,
                 target_bucket_name,
                 remote_filepath,
-                overwrite,
+                update,
             )
 
             futures.append(batch)
@@ -131,15 +134,16 @@ def build(
     #
     for tranche, bucket_name in GRIN_TO_S3_TRANCHES_TO_BUCKET_NAMES.items():
         try:
-            pull_csv_file(tranche, bucket_name, overwrite)
+            pull_csv_file(tranche, bucket_name, update)
         except Exception:
             click.echo(traceback.format_exc())
             click.echo("Could not download books.csv file. Interrupting.")
             exit(1)
 
     #
-    # Index jsonl files, in parallel
+    # Index jsonl files (parallelized)
     #
+    click.echo("📋 Indexing content from individual JSONL files ...")
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         futures = []
 
@@ -155,9 +159,38 @@ def build(
                 future.result()
             except Exception:
                 click.echo(traceback.format_exc())
-                click.echo("Could not index contents of jsonl file. Interrupting.")
+                click.echo("Could not index contents of JSONL file. Interrupting.")
                 executor.shutdown(wait=False, cancel_futures=True)
                 exit(1)
+
+    #
+    # Index CSV records
+    #
+    click.echo("📋 Indexing content from individual CSV files ...")
+
+    # NOTE: Very basic parallelization.
+    # This could be much faster - but doesn't matter much in that case.
+    with ProcessPoolExecutor(max_workers=len(GRIN_TO_S3_TRANCHES)) as executor:
+        futures = []
+
+        for tranche in GRIN_TO_S3_TRANCHES:
+            batch = executor.submit(index_csv_file, tranche)
+            futures.append(batch)
+
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception:
+                click.echo(traceback.format_exc())
+                click.echo("Could not index contents of CSV file. Interrupting.")
+                executor.shutdown(wait=False, cancel_futures=True)
+                exit(1)
+
+    #
+    # Mark pipeline as ready
+    #
+    utils.pipeline_readiness.set_pipeline_readiness(True)
+    click.echo("✅ Pipeline is ready.")
 
 
 def list_remote_jsonl_gz_files(bucket_name: str) -> list[str]:
@@ -212,7 +245,7 @@ def list_remote_jsonl_gz_files(bucket_name: str) -> list[str]:
 def pull_and_unpack_jsonl_gz_file(
     bucket_name: str,
     remote_jsonl_gz_filepath: str,
-    overwrite: bool = False,
+    update: bool = False,
 ) -> bool:
     """
     Pulls a remote jsonl.gz file and unpacks it.
@@ -223,9 +256,9 @@ def pull_and_unpack_jsonl_gz_file(
     local_jsonl_gz_filepath = Path(INPUT_JSONL_DIR_PATH, jsonl_gz_filename)
     local_jsonl_filepath = Path(INPUT_JSONL_DIR_PATH, jsonl_filename)
 
-    # Check if file already exists if overwrite is False
-    if overwrite is False and local_jsonl_filepath.exists() and local_jsonl_filepath.stat().st_size:
-        click.echo(f"⏭️ Skipping {jsonl_gz_filename} (already present + no overwrite)")
+    # Check if file already exists if update is False
+    if update is False and local_jsonl_filepath.exists() and local_jsonl_filepath.stat().st_size:
+        click.echo(f"⏭️ Skipping {jsonl_gz_filename} (already present + no update)")
         return
 
     # Download
@@ -250,7 +283,7 @@ def pull_and_unpack_jsonl_gz_file(
     return True
 
 
-def pull_csv_file(tranche: str, bucket_name: str, overwrite: bool = False) -> bool:
+def pull_csv_file(tranche: str, bucket_name: str, update: bool = False) -> bool:
     """
     Pulls a {tranche}-book.csv file.
     """
@@ -265,9 +298,9 @@ def pull_csv_file(tranche: str, bucket_name: str, overwrite: bool = False) -> bo
         remote_csv_filepath.name,
     )
 
-    # Check if file already exists if overwrite is False
-    if overwrite is False and local_csv_filepath.exists() and local_csv_filepath.stat().st_size:
-        click.echo(f"⏭️ Skipping {local_csv_filepath.name} (already present + no overwrite)")
+    # Check if file already exists if update is False
+    if update is False and local_csv_filepath.exists() and local_csv_filepath.stat().st_size:
+        click.echo(f"⏭️ Skipping {local_csv_filepath.name} (already present + no update)")
         return
 
     click.echo(f"⬇️ Downloading {local_csv_filepath.name}")
@@ -284,6 +317,7 @@ def pull_csv_file(tranche: str, bucket_name: str, overwrite: bool = False) -> bo
 def index_jsonl_file(jsonl_filepath: Path) -> bool:
     """
     Creates (or replaces) BookIO records for a given jsonl file.
+    Keeps track of the offset of each JSON record to allow for random access.
     """
     entries_to_update = []
     entries_to_create = []
@@ -349,7 +383,7 @@ def index_jsonl_file(jsonl_filepath: Path) -> bool:
     # Create / update records in bulk
     #
     if entries_to_update:
-        click.echo(f"💾 {len(entries_to_update)} records to update from {jsonl_filepath}")
+        click.echo(f"💾 {len(entries_to_update)} records to update from {jsonl_filepath.name}")
         with utils.get_db().atomic():
             BookIO.bulk_update(
                 entries_to_update,
@@ -358,6 +392,39 @@ def index_jsonl_file(jsonl_filepath: Path) -> bool:
             )
 
     if entries_to_create:
-        click.echo(f"💾 {len(entries_to_create)} records to create from {jsonl_filepath}")
+        click.echo(f"💾 {len(entries_to_create)} records to create from {jsonl_filepath.name}")
         with utils.get_db().atomic():
             BookIO.bulk_create(entries_to_create, batch_size=1000)
+
+
+def index_csv_file(tranche: str) -> bool:
+    """
+    Updates BookIO records to track the offset of each CSV record to allow for random access.
+    """
+    entries_to_update = []
+
+    csv_filepath = Path(INPUT_CSV_DIR_PATH, f"{tranche}-books.csv")
+
+    with open(csv_filepath, "r+") as csv_file:
+        csv_file.readline()  # Skip first line (headers)
+
+        while True:
+            csv_offset = csv_file.tell()
+            csv_line = csv_file.readline()
+
+            if not csv_line:  # EOF
+                break
+
+            csv_data = csv.reader([csv_line]).__next__()
+            barcode = csv_data[0]
+
+            # Load database record for that barcode and save CSV offset
+            entry = BookIO.get(barcode=barcode)
+            entry.csv_offset = csv_offset
+
+            entries_to_update.append(entry)
+
+    if entries_to_update:
+        click.echo(f"💾 {len(entries_to_update)} records to update from {csv_filepath.name}")
+        with utils.get_db().atomic():
+            BookIO.bulk_update(entries_to_update, fields=[BookIO.csv_offset], batch_size=1000)

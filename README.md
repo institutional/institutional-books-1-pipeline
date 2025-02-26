@@ -11,7 +11,7 @@ Commands are grouped as follows:
 ## Summary 
 - [Getting started](#getting-started)
 - [Available utilities](#available-utilities)
-- [CLI: `setup build`](#cli-setup-build)
+- [CLI: `setup`](#cli-setup)
 
 ---
 
@@ -69,6 +69,51 @@ db = utils.get_db()
 ```
 
 All [models](/models/) cross-reference `BookIO` via a `book` foreign key.
+
+[👆 Back to the summary](#summary)
+
+---
+
+## CLI: setup 
+
+<details>
+<summary><h3>setup build</h3></summary>
+
+> ⚠️ This command must be run at least once.
+
+Prepares the pipeline:
+- Creates database tables
+- Downloads source files from the output of GRIN-TO-S3 that was saved on S3/R2
+- Indexes individual records from both JSONL and CSV files so BookIO can perform random access
+
+```bash
+python pipeline.py setup build
+python pipeline.py setup build --update # Overwrite existing source files
+python pipeline.py setup build --tables-only # Allows for only creating tables without populating them
+```
+</details>
+
+<details>
+<summary><h3>setup status</h3></summary>
+
+Reports on the pipeline's status (database and cache size, etc ...)
+
+```bash
+python pipeline.py setup status
+```
+
+</details>
+
+<details>
+<summary><h3>setup clear</h3></summary>
+
+Clears local data. Asks for confirmation before deleting each top-level folder/item.
+
+```bash
+python pipeline.py setup clear
+```
+
+</details>
 
 [👆 Back to the summary](#summary)
 

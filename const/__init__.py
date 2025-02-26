@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import datetime
 
 from slugify import slugify
@@ -12,37 +13,37 @@ load_dotenv()
 DATA_DIR_PATH = os.environ.get("DATA_DIR_PATH", None)
 """ Data directory: root path. """
 
-INPUT_DIR_PATH = os.path.join(DATA_DIR_PATH, "input")
+INPUT_DIR_PATH = Path(DATA_DIR_PATH, "input")
 """ Data input directory. """
 
-OUTPUT_DIR_PATH = os.path.join(DATA_DIR_PATH, "output")
+OUTPUT_DIR_PATH = Path(DATA_DIR_PATH, "output")
 """ Data output directory. """
 
-INPUT_JSONL_DIR_PATH = os.path.join(INPUT_DIR_PATH, "jsonl")
+INPUT_JSONL_DIR_PATH = Path(INPUT_DIR_PATH, "jsonl")
 """ Data input directory: JSONL folder. """
 
-INPUT_CSV_DIR_PATH = os.path.join(INPUT_DIR_PATH, "csv")
+INPUT_CSV_DIR_PATH = Path(INPUT_DIR_PATH, "csv")
 """ Data input directory: CSV folder. """
 
-INPUT_MISC_DIR_PATH = os.path.join(INPUT_DIR_PATH, "misc")
+INPUT_MISC_DIR_PATH = Path(INPUT_DIR_PATH, "misc")
 """ Data input directory: misc folder. Can be used for temporary files. """
 
-OUTPUT_DATABASE_DIR_PATH = os.path.join(OUTPUT_DIR_PATH, "database")
+OUTPUT_DATABASE_DIR_PATH = Path(OUTPUT_DIR_PATH, "database")
 """ Data output directory: database folder. """
 
 OUTPUT_DATABASE_FILENAME = "database.db"
 """ Filename for the local database. """
 
-OUTPUT_EXPORT_DIR_PATH = os.path.join(OUTPUT_DIR_PATH, "export")
+OUTPUT_EXPORT_DIR_PATH = Path(OUTPUT_DIR_PATH, "export")
 """ Data output directory: export folder. """
 
-OUTPUT_MISC_DIR_PATH = os.path.join(OUTPUT_DIR_PATH, "misc")
+OUTPUT_MISC_DIR_PATH = Path(OUTPUT_DIR_PATH, "misc")
 """ Data output directory: misc folder. Can be used for temporary files. """
 
 #
 # Pipeline ready check
 #
-OUTPUT_PIPELINE_READY_FILEPATH = os.path.join(DATA_DIR_PATH, "ready.check")
+OUTPUT_PIPELINE_READY_FILEPATH = Path(DATA_DIR_PATH, "ready.check")
 """ File used to indicate that the data is ready to be analyzed. Written by `data build`. """
 
 #

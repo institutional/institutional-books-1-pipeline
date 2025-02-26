@@ -28,6 +28,7 @@ morfessor = "^2.0.6"
 pyicu = "^2.14"
 simhash = "^2.1.2"
 numpy = "1.26.4"
+humanize = "^4.12.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
