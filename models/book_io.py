@@ -76,7 +76,7 @@ class BookIO(peewee.Model):
         ):
             jsonl_filepath = os.path.join(
                 INPUT_JSONL_DIR_PATH,
-                f"{self.tranche}_{self.jsonl_file_number:04}.jsonl",
+                f"{self.tranche}-{self.jsonl_file_number:04}.jsonl",
             )
 
             with open(jsonl_filepath, "r+") as jsonl_file:

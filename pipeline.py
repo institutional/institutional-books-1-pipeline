@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 import utils
 import commands.setup
+import commands.analyze
 
 load_dotenv()
 utils.check_env()
@@ -18,6 +19,7 @@ def cli():
 
 
 cli.add_command(commands.setup.setup)
+cli.add_command(commands.analyze.analyze)
 
 if __name__ == "__main__":
     cli()

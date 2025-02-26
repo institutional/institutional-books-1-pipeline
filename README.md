@@ -5,6 +5,7 @@ A pipeline for analyzing, refining and publishing a dataset from Harvard Library
 
 Commands are grouped as follows:
 - **setup**: Pipeline setup and corpus I/O (for example: downloading and indexing a local copy of the collection).
+- **analyze**: Analyze data already present in the collection (raw data, existing metadata). Results are stored in the database.
 
 ---
 
