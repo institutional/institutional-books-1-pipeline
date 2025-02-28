@@ -89,6 +89,9 @@ def year_of_publication(
         if len(entries_to_create) + len(entries_to_update) >= entries_batch_max_size:
             save_entries_batches(entries_to_create, entries_to_update)
 
+    # Save remaining items from batches
+    save_entries_batches(entries_to_create, entries_to_update)
+
 
 def find_likely_publication_year(book: BookIO) -> tuple:
     """

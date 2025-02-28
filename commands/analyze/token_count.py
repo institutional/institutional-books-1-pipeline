@@ -109,18 +109,21 @@ def token_count(
         except Exception:
             pass
 
-        # Tiktoken (GPT-X)
-        if target_llm.startswith("openai"):
-            token_batches = tokenizer.encode_batch(text_by_page, num_threads=tokenizer_threads)
+        # Only run tokenizer if text is not empty
+        if "".join(text_by_page):
+            # Tiktoken (GPT-X)
+            if target_llm.startswith("openai"):
+                token_batches = tokenizer.encode_batch(text_by_page, num_threads=tokenizer_threads)
 
-            for tokens in token_batches:
-                total += len(tokens)
-        # Transformers (other)
-        else:
-            token_batches = tokenizer.batch_encode_plus(text_by_page)
+                for tokens in token_batches:
+                    total += len(tokens)
 
-            for tokens in token_batches["input_ids"]:
-                total += len(tokens)
+            # Transformers (other)
+            else:
+                token_batches = tokenizer.batch_encode_plus(text_by_page)
+
+                for tokens in token_batches["input_ids"]:
+                    total += len(tokens)
 
         # Prepare record
         token_count = TokenCount() if not already_exists else token_count
@@ -140,6 +143,9 @@ def token_count(
         # Empty batches every X row
         if len(entries_to_create) + len(entries_to_update) >= entries_batch_max_size:
             save_entries_batches(entries_to_create, entries_to_update)
+
+    # Save remaining items from batches
+    save_entries_batches(entries_to_create, entries_to_update)
 
 
 def save_entries_batches(
