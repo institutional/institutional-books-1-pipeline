@@ -7,7 +7,7 @@ from models import BookIO
 
 class TokenCount(peewee.Model):
     """
-    `token_count` table: Stores token counts for a given record.
+    `token_count` table: Stores the token count for a given record + tokenizer.
     """
 
     class Meta:

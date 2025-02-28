@@ -85,8 +85,13 @@ def token_count(
     #
     # Count token for each record
     #
+    entries_to_update = []
+    entries_to_create = []
+    entries_batch_max_size = 10_000
+
     for book in BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator():
         token_count = None
+        already_exists = False
         text_by_page = book.jsonl_data["text_by_page"]
         total = 0
 
@@ -95,8 +100,10 @@ def token_count(
         try:
             # throws if not found
             token_count = TokenCount.get(book=book.barcode, tokenizer=tokenizer_name)
+            assert token_count
+            already_exists = True
 
-            if not overwrite:
+            if already_exists and not overwrite:
                 click.echo(f"⏭️ #{book.barcode} {tokenizer_name} already exists.")
                 continue
         except Exception:
@@ -115,13 +122,37 @@ def token_count(
             for tokens in token_batches["input_ids"]:
                 total += len(tokens)
 
-        # Save
-        token_count = TokenCount() if not token_count else token_count
+        # Prepare record
+        token_count = TokenCount() if not already_exists else token_count
         token_count.book = book.barcode
         token_count.target_llm = target_llm
         token_count.tokenizer = tokenizer_name
         token_count.count = total
 
-        token_count.save(force_insert=True if not overwrite else False)
-
         click.echo(f"🧮 #{book.barcode} + {tokenizer_name} = {total} tokens.")
+
+        # Add to batch
+        if already_exists:
+            entries_to_update.append(token_count)
+        else:
+            entries_to_create.append(token_count)
+
+        # Empty batches every X row
+        if len(entries_to_create) + len(entries_to_update) >= entries_batch_max_size:
+            save_entries_batches(entries_to_create, entries_to_update)
+
+
+def save_entries_batches(
+    entries_to_create: list[TokenCount],
+    entries_to_update: list[TokenCount],
+) -> bool:
+    """
+    Saves batches of entries.
+    """
+    if entries_to_create:
+        TokenCount.bulk_create(entries_to_create, batch_size=1000)
+        entries_to_create.clear()
+
+    if entries_to_update:
+        TokenCount.bulk_update(entries_to_update, fields=[TokenCount.count], batch_size=1000)
+        entries_to_update.clear()

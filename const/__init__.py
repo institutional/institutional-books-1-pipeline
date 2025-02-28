@@ -87,5 +87,6 @@ DATETIME_SLUG = datetime_slug = slugify(
 TABLES = {
     "book_io": "BookIO",
     "token_count": "TokenCount",
+    "page_count": "PageCount",
 }
 """ Mapping: Table names to Model class name. """
