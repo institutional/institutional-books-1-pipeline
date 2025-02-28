@@ -1,13 +1,11 @@
-import re
-
 import click
 import iso639
 
 import utils
-from models import BookIO, MainLanguage
+from models import BookIO, TopicClassification
 
 
-@click.command("main-language-from-metadata")
+@click.command("topic-classification-from-metadata")
 @click.option(
     "--overwrite",
     is_flag=True,
@@ -34,14 +32,14 @@ from models import BookIO, MainLanguage
     help="Determines the frequency at which records are pushed to the database. By default: once every 10,000 record creation/update request.",
 )
 @utils.needs_pipeline_ready
-def main_language_from_metadata(
+def topic_classification_from_metadata(
     overwrite: bool,
     start: int | None,
     end: int | None,
     db_write_batch_size: int,
 ):
     """
-    Collects the main language of each book as expressed in the collection's metadata.
+    Collects the "topic/subject" classification of each book as expressed in the collection's metadata.
 
     Notes:
     - Skips entries that were already analyzed, unless instructed otherwise.
@@ -50,21 +48,20 @@ def main_language_from_metadata(
     entries_to_update = []
 
     fields_to_update = [
-        MainLanguage.from_metadata_iso693_2b,
-        MainLanguage.from_metadata_iso693_3,
-        MainLanguage.metadata_source,
+        TopicClassification.from_metadata,
+        TopicClassification.metadata_source,
     ]
 
     for book in BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator():
-        main_language = None
+        topic_classification = None
         already_exists = False
 
         # Check if record already exists
         # NOTE: That check is done on the fly so this process can be easily parallelized.
         try:
             # throws if not found
-            main_language = MainLanguage.get(book=book.barcode)
-            assert main_language
+            topic_classification = TopicClassification.get(book=book.barcode)
+            assert topic_classification
             already_exists = True
 
             if already_exists and not overwrite:
@@ -74,28 +71,28 @@ def main_language_from_metadata(
             pass
 
         # Prepare record
-        main_language = MainLanguage() if not already_exists else main_language
-        main_language.book = book.barcode
-        main_language.metadata_source = "gxml Language"
+        topic_classification = TopicClassification() if not already_exists else topic_classification
+        topic_classification.book = book.barcode
+        topic_classification.metadata_source = "gxml Subject Added Entry-Topical Term"
 
-        try:
-            gxml_language = iso639.Lang(pt2b=book.csv_data["gxml Language"])
-            main_language.from_metadata_iso693_2b = gxml_language.pt2b
-            main_language.from_metadata_iso693_3 = gxml_language.pt3
-            click.echo(f"🧮 #{book.barcode} = {gxml_language.pt3} (metadata)")
-        except Exception:
-            click.echo(f"🧮 #{book.barcode} - no valid language info.")
+        from_metadata = book.csv_data["gxml Subject Added Entry-Topical Term"]
+
+        if from_metadata.strip():
+            topic_classification.from_metadata = from_metadata
+            click.echo(f"🧮 #{book.barcode} = {from_metadata} (metadata)")
+        else:
+            click.echo(f"🧮 #{book.barcode} - no valid topic/subject info.")
 
         # Add to batch
         if already_exists:
-            entries_to_update.append(main_language)
+            entries_to_update.append(topic_classification)
         else:
-            entries_to_create.append(main_language)
+            entries_to_create.append(topic_classification)
 
         # Empty batches every X row
         if len(entries_to_create) + len(entries_to_update) >= db_write_batch_size:
             utils.process_db_write_batch(
-                MainLanguage,
+                TopicClassification,
                 entries_to_create,
                 entries_to_update,
                 fields_to_update,
@@ -103,7 +100,7 @@ def main_language_from_metadata(
 
     # Save remaining items from batches
     utils.process_db_write_batch(
-        MainLanguage,
+        TopicClassification,
         entries_to_create,
         entries_to_update,
         fields_to_update,

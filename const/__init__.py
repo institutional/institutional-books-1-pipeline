@@ -90,5 +90,6 @@ TABLES = {
     "page_count": "PageCount",
     "year_of_publication": "YearOfPublication",
     "main_language": "MainLanguage",
+    "topic_classification": "TopicClassification",
 }
 """ Mapping: Table names to Model class name. """

@@ -4,6 +4,7 @@ from .token_count import token_count
 from .page_count import page_count
 from .year_of_publication import year_of_publication
 from .main_language_from_metadata import main_language_from_metadata
+from .topic_classification_from_metadata import topic_classification_from_metadata
 
 
 @click.group("analyze")
@@ -16,3 +17,4 @@ analyze.add_command(token_count)
 analyze.add_command(page_count)
 analyze.add_command(year_of_publication)
 analyze.add_command(main_language_from_metadata)
+analyze.add_command(topic_classification_from_metadata)
