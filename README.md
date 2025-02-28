@@ -22,6 +22,7 @@ Commands are grouped as follows:
 - [Python 3.11+](https://python.org)
 - [Python Poetry](https://python-poetry.org/)
 - [Protobuf](https://github.com/protocolbuffers/protobuf) (`protobuf-compiler` on Debian/Ubuntu)
+- [SQLite 3.32.0+](https://www.sqlite.org/)
 
 ```bash
 # Clone project

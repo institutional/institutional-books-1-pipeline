@@ -1,14 +1,9 @@
-import os
-import traceback
-import multiprocessing
 import re
 
 import click
-import tiktoken
 
 import utils
 from models import BookIO, YearOfPublication
-import const
 
 
 @click.command("year-of-publication")
@@ -30,11 +25,19 @@ import const
     required=False,
     help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
 )
+@click.option(
+    "--db-write-batch-size",
+    type=int,
+    required=False,
+    default=10_000,
+    help="Determines the frequency at which records are pushed to the database. By default: once every 10,000 record creation/update request.",
+)
 @utils.needs_pipeline_ready
 def year_of_publication(
     overwrite: bool,
     start: int | None,
     end: int | None,
+    db_write_batch_size: int,
 ):
     """
     Determines, for each record, the likely year of publication based on existing metadata.
@@ -45,7 +48,7 @@ def year_of_publication(
     """
     entries_to_create = []
     entries_to_update = []
-    entries_batch_max_size = 10_000
+    fields_to_update = [YearOfPublication.year, YearOfPublication.source_field]
 
     for book in BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator():
         year_of_publication = None
@@ -86,11 +89,21 @@ def year_of_publication(
             entries_to_create.append(year_of_publication)
 
         # Empty batches every X row
-        if len(entries_to_create) + len(entries_to_update) >= entries_batch_max_size:
-            save_entries_batches(entries_to_create, entries_to_update)
+        if len(entries_to_create) + len(entries_to_update) >= db_write_batch_size:
+            utils.process_db_write_batch(
+                YearOfPublication,
+                entries_to_create,
+                entries_to_update,
+                fields_to_update,
+            )
 
     # Save remaining items from batches
-    save_entries_batches(entries_to_create, entries_to_update)
+    utils.process_db_write_batch(
+        YearOfPublication,
+        entries_to_create,
+        entries_to_update,
+        fields_to_update,
+    )
 
 
 def find_likely_publication_year(book: BookIO) -> tuple:
@@ -141,23 +154,3 @@ def find_likely_publication_year(book: BookIO) -> tuple:
         break
 
     return output
-
-
-def save_entries_batches(
-    entries_to_create: list[YearOfPublication],
-    entries_to_update: list[YearOfPublication],
-) -> bool:
-    """
-    Saves batches of entries.
-    """
-    if entries_to_create:
-        YearOfPublication.bulk_create(entries_to_create, batch_size=1000)
-        entries_to_create.clear()
-
-    if entries_to_update:
-        YearOfPublication.bulk_update(
-            entries_to_update,
-            fields=[YearOfPublication.year, YearOfPublication.source_field],
-            batch_size=1000,
-        )
-        entries_to_update.clear()

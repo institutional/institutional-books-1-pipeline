@@ -1,13 +1,7 @@
-import os
-import traceback
-import multiprocessing
-
 import click
-import tiktoken
 
 import utils
 from models import BookIO, PageCount
-import const
 
 
 @click.command("page-count")
@@ -29,11 +23,19 @@ import const
     required=False,
     help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
 )
+@click.option(
+    "--db-write-batch-size",
+    type=int,
+    required=False,
+    default=10_000,
+    help="Determines the frequency at which records are pushed to the database. By default: once every 10,000 record creation/update request.",
+)
 @utils.needs_pipeline_ready
 def page_count(
     overwrite: bool,
     start: int | None,
     end: int | None,
+    db_write_batch_size: int,
 ):
     """
     Counts and saves the number of available pages of each record.
@@ -43,7 +45,7 @@ def page_count(
     """
     entries_to_create = []
     entries_to_update = []
-    entries_batch_max_size = 10_000
+    fields_to_update = [PageCount.count_from_ocr, PageCount.count_from_metadata]
 
     for book in BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator():
         page_count = None
@@ -83,28 +85,18 @@ def page_count(
             entries_to_create.append(page_count)
 
         # Empty batches every X row
-        if len(entries_to_create) + len(entries_to_update) >= entries_batch_max_size:
-            save_entries_batches(entries_to_create, entries_to_update)
+        if len(entries_to_create) + len(entries_to_update) >= db_write_batch_size:
+            utils.process_db_write_batch(
+                PageCount,
+                entries_to_create,
+                entries_to_update,
+                fields_to_update,
+            )
 
     # Save remaining items from batches
-    save_entries_batches(entries_to_create, entries_to_update)
-
-
-def save_entries_batches(
-    entries_to_create: list[PageCount],
-    entries_to_update: list[PageCount],
-) -> bool:
-    """
-    Saves batches of entries.
-    """
-    if entries_to_create:
-        PageCount.bulk_create(entries_to_create, batch_size=1000)
-        entries_to_create.clear()
-
-    if entries_to_update:
-        PageCount.bulk_update(
-            entries_to_update,
-            fields=[PageCount.count_from_ocr, PageCount.count_from_metadata],
-            batch_size=1000,
-        )
-        entries_to_update.clear()
+    utils.process_db_write_batch(
+        PageCount,
+        entries_to_create,
+        entries_to_update,
+        fields_to_update,
+    )

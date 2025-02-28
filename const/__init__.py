@@ -88,5 +88,6 @@ TABLES = {
     "book_io": "BookIO",
     "token_count": "TokenCount",
     "page_count": "PageCount",
+    "year_of_publication": "YearOfPublication",
 }
 """ Mapping: Table names to Model class name. """

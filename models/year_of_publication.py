@@ -29,6 +29,7 @@ class YearOfPublication(peewee.Model):
 
     source_field = peewee.CharField(
         max_length=128,
+        null=True,
         unique=False,
         index=True,
     )

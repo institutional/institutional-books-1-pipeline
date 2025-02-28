@@ -40,6 +40,13 @@ import const
     required=False,
     help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
 )
+@click.option(
+    "--db-write-batch-size",
+    type=int,
+    required=False,
+    default=10_000,
+    help="Determines the frequency at which records are pushed to the database. By default: once every 10,000 record creation/update request.",
+)
 @utils.needs_pipeline_ready
 def token_count(
     target_llm: str,
@@ -47,6 +54,7 @@ def token_count(
     overwrite: bool,
     start: int | None,
     end: int | None,
+    db_write_batch_size: int,
 ):
     """
     Tokenizes the text of each newspaper issue and saves the resulting token counts in the database.
@@ -58,6 +66,10 @@ def token_count(
     """
     tokenizer = None
     tokenizer_name = ""
+
+    entries_to_update = []
+    entries_to_create = []
+    fields_to_update = [TokenCount.count]
 
     # Configure HF AutoTokenizer's parallelisim before importing it
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
@@ -85,10 +97,6 @@ def token_count(
     #
     # Count token for each record
     #
-    entries_to_update = []
-    entries_to_create = []
-    entries_batch_max_size = 10_000
-
     for book in BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator():
         token_count = None
         already_exists = False
@@ -141,24 +149,18 @@ def token_count(
             entries_to_create.append(token_count)
 
         # Empty batches every X row
-        if len(entries_to_create) + len(entries_to_update) >= entries_batch_max_size:
-            save_entries_batches(entries_to_create, entries_to_update)
+        if len(entries_to_create) + len(entries_to_update) >= db_write_batch_size:
+            utils.process_db_write_batch(
+                TokenCount,
+                entries_to_create,
+                entries_to_update,
+                fields_to_update,
+            )
 
     # Save remaining items from batches
-    save_entries_batches(entries_to_create, entries_to_update)
-
-
-def save_entries_batches(
-    entries_to_create: list[TokenCount],
-    entries_to_update: list[TokenCount],
-) -> bool:
-    """
-    Saves batches of entries.
-    """
-    if entries_to_create:
-        TokenCount.bulk_create(entries_to_create, batch_size=1000)
-        entries_to_create.clear()
-
-    if entries_to_update:
-        TokenCount.bulk_update(entries_to_update, fields=[TokenCount.count], batch_size=1000)
-        entries_to_update.clear()
+    utils.process_db_write_batch(
+        TokenCount,
+        entries_to_create,
+        entries_to_update,
+        fields_to_update,
+    )
