@@ -48,13 +48,19 @@ def year_of_publication(
     """
     entries_to_create = []
     entries_to_update = []
-    fields_to_update = [YearOfPublication.year, YearOfPublication.source_field]
+
+    fields_to_update = [
+        YearOfPublication.year,
+        YearOfPublication.decade,
+        YearOfPublication.century,
+        YearOfPublication.source_field,
+    ]
 
     for book in BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator():
         year_of_publication = None
         already_exists = False
 
-        # Check if page count already exists
+        # Check if record already exists
         # NOTE: That check is done on the fly so this process can be easily parallelized.
         try:
             # throws if not found
@@ -75,6 +81,8 @@ def year_of_publication(
         year, source_field = find_likely_publication_year(book)
 
         year_of_publication.year = year
+        year_of_publication.decade = year // 10 * 10 if year is not None else None
+        year_of_publication.century = year // 100 * 100 if year is not None else None
         year_of_publication.source_field = source_field
 
         if year:

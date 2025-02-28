@@ -89,5 +89,6 @@ TABLES = {
     "token_count": "TokenCount",
     "page_count": "PageCount",
     "year_of_publication": "YearOfPublication",
+    "main_language": "MainLanguage",
 }
 """ Mapping: Table names to Model class name. """

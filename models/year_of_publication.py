@@ -27,6 +27,18 @@ class YearOfPublication(peewee.Model):
         index=True,
     )
 
+    decade = peewee.IntegerField(
+        null=True,
+        unique=False,
+        index=True,
+    )
+
+    century = peewee.IntegerField(
+        null=True,
+        unique=False,
+        index=True,
+    )
+
     source_field = peewee.CharField(
         max_length=128,
         null=True,
