@@ -30,6 +30,8 @@ simhash = "^2.1.2"
 numpy = "1.26.4"
 humanize = "^4.12.1"
 tiktoken = "^0.9.0"
+protobuf = "^5.29.3"
+sentencepiece = "^0.2.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"

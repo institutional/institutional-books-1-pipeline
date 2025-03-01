@@ -9,7 +9,7 @@ def check_env() -> None:
         "DATA_DIR_PATH",
         "GRIN_TO_S3_DATA_ENDPOINT",
         "GRIN_TO_S3_DATA_ACCESS_KEY_ID",
-        "GRIN_TO_S3_DATA_ACCESS_KEY",
+        "GRIN_TO_S3_DATA_SECRET_ACCESS_KEY",
         "OPENAI_API_KEY",
         "OPENAI_ORG_ID",
         "HF_TOKEN",
