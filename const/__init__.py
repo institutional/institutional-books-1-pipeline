@@ -92,5 +92,6 @@ TABLES = {
     "main_language": "MainLanguage",
     "topic_classification": "TopicClassification",
     "genre_classification": "GenreClassification",
+    "ocr_quality": "OCRQuality",
 }
 """ Mapping: Table names to Model class name. """

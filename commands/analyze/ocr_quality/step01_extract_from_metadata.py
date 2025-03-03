@@ -1,7 +1,7 @@
 import click
 
 import utils
-from models import BookIO, GenreClassification
+from models import BookIO, OCRQuality
 
 
 @click.command("step01-extract-from-metadata")
@@ -38,8 +38,8 @@ def step01_extract_from_metadata(
     db_write_batch_size: int,
 ):
     """
-    Genre classification experiments, step 01:
-    Collects the "genre/form" classification of each book as expressed in the collection's metadata.
+    OCR quality experiments, step 01:
+    Collects OCR quality metrics from each book as expressed in the collection's metadata.
 
     Notes:
     - Skips entries that were already analyzed, unless instructed otherwise.
@@ -48,20 +48,20 @@ def step01_extract_from_metadata(
     entries_to_update = []
 
     fields_to_update = [
-        GenreClassification.from_metadata,
-        GenreClassification.metadata_source,
+        OCRQuality.from_metadata,
+        OCRQuality.metadata_source,
     ]
 
     for book in BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator():
-        genre_classification = None
+        ocr_quality = None
         already_exists = False
 
         # Check if record already exists
         # NOTE: That check is done on the fly so this process can be easily parallelized.
         try:
             # throws if not found
-            genre_classification = GenreClassification.get(book=book.barcode)
-            assert genre_classification
+            ocr_quality = OCRQuality.get(book=book.barcode)
+            assert ocr_quality
             already_exists = True
 
             if already_exists and not overwrite:
@@ -71,28 +71,30 @@ def step01_extract_from_metadata(
             pass
 
         # Prepare record
-        genre_classification = GenreClassification() if not already_exists else genre_classification
-        genre_classification.book = book.barcode
-        genre_classification.metadata_source = "gxml Index Term-Genre/Form"
+        ocr_quality = OCRQuality() if not already_exists else ocr_quality
+        ocr_quality.book = book.barcode
+        ocr_quality.metadata_source = "OCR Analysis Score"
 
-        from_metadata = book.csv_data["gxml Index Term-Genre/Form"]
+        from_metadata = book.csv_data["OCR Analysis Score"]
 
-        if from_metadata.strip():
-            genre_classification.from_metadata = from_metadata
+        try:
+            ocr_quality.from_metadata = int(from_metadata)
+            assert from_metadata is not None
+            ocr_quality.from_metadata = from_metadata
             click.echo(f"🧮 #{book.barcode} = {from_metadata} (metadata)")
-        else:
-            click.echo(f"🧮 #{book.barcode} - no valid genre/form info.")
+        except:
+            click.echo(f"🧮 #{book.barcode} - no valid OCR Analysis score info.")
 
         # Add to batch
         if already_exists:
-            entries_to_update.append(genre_classification)
+            entries_to_update.append(ocr_quality)
         else:
-            entries_to_create.append(genre_classification)
+            entries_to_create.append(ocr_quality)
 
         # Empty batches every X row
         if len(entries_to_create) + len(entries_to_update) >= db_write_batch_size:
             utils.process_db_write_batch(
-                GenreClassification,
+                OCRQuality,
                 entries_to_create,
                 entries_to_update,
                 fields_to_update,
@@ -100,7 +102,7 @@ def step01_extract_from_metadata(
 
     # Save remaining items from batches
     utils.process_db_write_batch(
-        GenreClassification,
+        OCRQuality,
         entries_to_create,
         entries_to_update,
         fields_to_update,
