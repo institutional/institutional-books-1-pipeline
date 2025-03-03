@@ -6,7 +6,7 @@ import utils
 from models import BookIO, YearOfPublication
 
 
-@click.command("year-of-publication")
+@click.command("extract-year-of-publication-from-metadata")
 @click.option(
     "--overwrite",
     is_flag=True,
@@ -33,7 +33,7 @@ from models import BookIO, YearOfPublication
     help="Determines the frequency at which records are pushed to the database. By default: once every 10,000 record creation/update request.",
 )
 @utils.needs_pipeline_ready
-def year_of_publication(
+def extract_year_of_publication_from_metadata(
     overwrite: bool,
     start: int | None,
     end: int | None,

@@ -1,10 +1,10 @@
 import click
 
 import utils
-from models import BookIO, PageCount
+from models import BookIO, TopicClassification
 
 
-@click.command("page-count")
+@click.command("step01-extract-from-metadata")
 @click.option(
     "--overwrite",
     is_flag=True,
@@ -31,63 +31,68 @@ from models import BookIO, PageCount
     help="Determines the frequency at which records are pushed to the database. By default: once every 10,000 record creation/update request.",
 )
 @utils.needs_pipeline_ready
-def page_count(
+def step01_extract_from_metadata(
     overwrite: bool,
     start: int | None,
     end: int | None,
     db_write_batch_size: int,
 ):
     """
-    Counts and saves the number of available pages of each record.
+    Topic classification experiments, step 01:
+    Collects the "topic/subject" classification of each book as expressed in the collection's metadata.
 
     Notes:
-    - Skips texts that were already analyzed, unless instructed otherwise.
+    - Skips entries that were already analyzed, unless instructed otherwise.
     """
     entries_to_create = []
     entries_to_update = []
-    fields_to_update = [PageCount.count_from_ocr, PageCount.count_from_metadata]
+
+    fields_to_update = [
+        TopicClassification.from_metadata,
+        TopicClassification.metadata_source,
+    ]
 
     for book in BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator():
-        page_count = None
+        topic_classification = None
         already_exists = False
 
         # Check if record already exists
         # NOTE: That check is done on the fly so this process can be easily parallelized.
         try:
             # throws if not found
-            page_count = PageCount.get(book=book.barcode)
-            assert page_count
+            topic_classification = TopicClassification.get(book=book.barcode)
+            assert topic_classification
             already_exists = True
 
             if already_exists and not overwrite:
-                click.echo(f"⏭️ #{book.barcode} page count already exists.")
+                click.echo(f"⏭️ #{book.barcode} already analyzed.")
                 continue
         except Exception:
             pass
 
         # Prepare record
-        page_count = PageCount() if not already_exists else page_count
-        page_count.book = book.barcode
-        page_count.count_from_ocr = len(book.jsonl_data["text_by_page"])
-        page_count.count_from_metadata = 0
+        topic_classification = TopicClassification() if not already_exists else topic_classification
+        topic_classification.book = book.barcode
+        topic_classification.metadata_source = "gxml Subject Added Entry-Topical Term"
 
-        try:
-            page_count.count_from_metadata = int(book.csv_data["Page Count"])
-        except:
-            pass
+        from_metadata = book.csv_data["gxml Subject Added Entry-Topical Term"]
 
-        click.echo(f"🧮 #{book.barcode} = {page_count.count_from_ocr} pages.")
+        if from_metadata.strip():
+            topic_classification.from_metadata = from_metadata
+            click.echo(f"🧮 #{book.barcode} = {from_metadata} (metadata)")
+        else:
+            click.echo(f"🧮 #{book.barcode} - no valid topic/subject info.")
 
         # Add to batch
         if already_exists:
-            entries_to_update.append(page_count)
+            entries_to_update.append(topic_classification)
         else:
-            entries_to_create.append(page_count)
+            entries_to_create.append(topic_classification)
 
         # Empty batches every X row
         if len(entries_to_create) + len(entries_to_update) >= db_write_batch_size:
             utils.process_db_write_batch(
-                PageCount,
+                TopicClassification,
                 entries_to_create,
                 entries_to_update,
                 fields_to_update,
@@ -95,7 +100,7 @@ def page_count(
 
     # Save remaining items from batches
     utils.process_db_write_batch(
-        PageCount,
+        TopicClassification,
         entries_to_create,
         entries_to_update,
         fields_to_update,

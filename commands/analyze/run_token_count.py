@@ -10,7 +10,7 @@ from models import BookIO, TokenCount
 import const
 
 
-@click.command("token-count")
+@click.command("run-token-count")
 @click.option(
     "--target-llm",
     default="openai/gpt-4o",
@@ -48,7 +48,7 @@ import const
     help="Determines the frequency at which records are pushed to the database. By default: once every 10,000 record creation/update request.",
 )
 @utils.needs_pipeline_ready
-def token_count(
+def run_token_count(
     target_llm: str,
     tokenizer_threads: int,
     overwrite: bool,

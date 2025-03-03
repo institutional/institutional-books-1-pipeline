@@ -4,3 +4,4 @@ from .page_count import PageCount
 from .year_of_publication import YearOfPublication
 from .main_language import MainLanguage
 from .topic_classification import TopicClassification
+from .genre_classification import GenreClassification
