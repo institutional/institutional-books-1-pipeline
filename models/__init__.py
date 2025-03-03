@@ -6,3 +6,4 @@ from .main_language import MainLanguage
 from .topic_classification import TopicClassification
 from .genre_classification import GenreClassification
 from .ocr_quality import OCRQuality
+from .scanned_text_simhash import ScannedTextSimhash

@@ -9,3 +9,4 @@ from .pipeline_readiness import (
     needs_pipeline_ready,
 )
 from .process_db_write_batch import process_db_write_batch
+from .get_simhash_features import get_simhash_features

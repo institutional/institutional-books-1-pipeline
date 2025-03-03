@@ -93,5 +93,6 @@ TABLES = {
     "topic_classification": "TopicClassification",
     "genre_classification": "GenreClassification",
     "ocr_quality": "OCRQuality",
+    "scanned_text_simhash": "ScannedTextSimhash",
 }
 """ Mapping: Table names to Model class name. """
