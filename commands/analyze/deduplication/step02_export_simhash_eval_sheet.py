@@ -70,7 +70,7 @@ def step02_export_simhash_eval_sheet(n_samples: int):
 
         for simhash, barcodes in hashes_to_barcodes.items():
 
-            if samples_written > n_samples:
+            if samples_written >= n_samples:
                 break
 
             # Focus on items that have at least 1 likely duplicate
