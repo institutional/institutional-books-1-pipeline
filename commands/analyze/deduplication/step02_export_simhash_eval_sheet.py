@@ -56,13 +56,44 @@ def step02_export_simhash_eval_sheet(n_samples: int):
         hashes_to_barcodes[hash].append(barcode)
 
     #
-    # TODO: Export samples
+    # Export samples
     #
     click.echo(f"💾 Saving {n_samples} samples ...")
-    for i, entry in enumerate(hashes_to_barcodes.items(), start=1):
-        if i >= n_samples:
-            break
 
-        # WIP
+    with open(output_filepath, "w+") as fd:
+        samples_written = 0
+
+        writer = csv.writer(fd)
+
+        # Headers = simhash, barcode_{1...20}
+        writer.writerow(["simhash"] + [f"barcode_{i}" for i in range(1, 21)])
+
+        for simhash, barcodes in hashes_to_barcodes.items():
+
+            if samples_written > n_samples:
+                break
+
+            # Focus on items that have at least 1 likely duplicate
+            if len(barcodes) < 2:
+                continue
+
+            # Check that all barcodes are in the "VIEW_FULL" tranche.
+            # This will help review items by eliminating entries that can't be checked online.
+            not_all_view_full = False
+
+            for barcode in barcodes:
+                if BookIO.get(barcode=barcode).tranche != "VIEW_FULL":
+                    not_all_view_full = True
+                    break
+
+            if not_all_view_full:
+                continue
+
+            writer.writerow(
+                [simhash]
+                + [f"https://babel.hathitrust.org/cgi/pt?id=hvd.{barcode}" for barcode in barcodes]
+            )
+
+            samples_written += 1
 
     click.echo(f"✅ {output_filepath.name} saved to disk.")
