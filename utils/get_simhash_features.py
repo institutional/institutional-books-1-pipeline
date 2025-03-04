@@ -1,7 +1,7 @@
 import re
 
 
-def get_simhash_features(text: str, shingle_width: int = 5) -> list:
+def get_simhash_features(text: str, shingle_width: int = 6) -> list:
     """
     Processes a string into a list of shingles for use with Simhash.
     via: https://leons.im/posts/a-python-implementation-of-simhash-algorithm/

@@ -16,6 +16,13 @@ from models import BookIO, ScannedTextSimhash
 
 @click.command("step01-get-simhash")
 @click.option(
+    "--simhash-shingle-width",
+    type=int,
+    required=False,
+    default=6,
+    help="Determines the size of the shingles used by simhash to measure similarity between texts.",
+)
+@click.option(
     "--overwrite",
     is_flag=True,
     default=False,
@@ -42,6 +49,7 @@ from models import BookIO, ScannedTextSimhash
 )
 @needs_pipeline_ready
 def step01_get_simhash(
+    simhash_shingle_width: int,
     overwrite: bool,
     start: int | None,
     end: int | None,
@@ -71,11 +79,15 @@ def step01_get_simhash(
 
         # Create batches of books to process
         for book in BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator():
+            books.append(book)
 
-            if len(books) <= batch_max_size:
-                books.append(book)
-            else:
-                batch = executor.submit(process_books_batch, books, overwrite)
+            if len(books) >= batch_max_size:
+                batch = executor.submit(
+                    process_books_batch,
+                    books,
+                    simhash_shingle_width,
+                    overwrite,
+                )
                 books = []
                 futures.append(batch)
 
@@ -90,7 +102,11 @@ def step01_get_simhash(
                 exit(1)
 
 
-def process_books_batch(books: list[BookIO], overwrite: bool = False) -> bool:
+def process_books_batch(
+    books: list[BookIO],
+    simhash_shingle_width: int = 6,
+    overwrite: bool = False,
+) -> bool:
     """
     Generates simhashes for a set of books and saves them.
     """
@@ -121,7 +137,7 @@ def process_books_batch(books: list[BookIO], overwrite: bool = False) -> bool:
         merged_text = "\n".join(book.jsonl_data["text_by_page"])
 
         if merged_text.strip():
-            hash = Simhash(get_simhash_features(merged_text))
+            hash = Simhash(get_simhash_features(merged_text, simhash_shingle_width))
             scanned_text_simhash.hash = hash.value
             click.echo(f"🧮 #{book.barcode} = {hash.value}")
         else:
