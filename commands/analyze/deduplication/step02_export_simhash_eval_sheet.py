@@ -65,10 +65,11 @@ def step02_export_simhash_eval_sheet(n_samples: int):
 
         writer = csv.writer(fd)
 
-        # Headers = simhash, barcode_{1...20}
-        writer.writerow(["simhash"] + [f"barcode_{i}" for i in range(1, 21)])
+        # Headers = simhash, gbooks_url_{1...20}
+        writer.writerow(["simhash"] + [f"gbooks_url_{i}" for i in range(1, 21)])
 
         for simhash, barcodes in hashes_to_barcodes.items():
+            gbooks_urls = []
 
             if samples_written >= n_samples:
                 break
@@ -82,17 +83,17 @@ def step02_export_simhash_eval_sheet(n_samples: int):
             not_all_view_full = False
 
             for barcode in barcodes:
-                if BookIO.get(barcode=barcode).tranche != "VIEW_FULL":
+                book = BookIO.get(barcode=barcode)
+
+                if book.tranche != "VIEW_FULL":
                     not_all_view_full = True
-                    break
+
+                gbooks_urls.append(book.csv_data["Google Books Link"])
 
             if not_all_view_full:
                 continue
 
-            writer.writerow(
-                [simhash]
-                + [f"https://babel.hathitrust.org/cgi/pt?id=hvd.{barcode}" for barcode in barcodes]
-            )
+            writer.writerow([simhash] + gbooks_urls)
 
             samples_written += 1
 
