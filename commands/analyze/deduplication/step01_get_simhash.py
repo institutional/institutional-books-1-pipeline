@@ -62,36 +62,43 @@ def step01_get_simhash(
     Notes:
     - Skips entries that were already analyzed, unless instructed otherwise.
     """
-    pass
-    #
-    # Assemble batches
-    #
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         futures = []
 
+        items_count = BookIO.select().offset(start).limit(end).count()
+
         batch_max_size = get_batch_max_size(
-            items_count=BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).count(),
+            items_count=items_count,
             max_workers=max_workers,
         )
 
-        books = []
+        books_buffer = []
         """ Single series of book of length batch_max_size """
 
+        #
         # Create batches of books to process
-        for book in BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator():
-            books.append(book)
+        #
+        for i, book in enumerate(
+            BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator(),
+            start=1,
+        ):
+            books_buffer.append(book)
 
-            if len(books) >= batch_max_size:
+            # Run if buffer is full or we've reached last item
+            if len(books_buffer) >= batch_max_size or i >= items_count:
                 batch = executor.submit(
                     process_books_batch,
-                    books,
+                    books_buffer,
                     simhash_shingle_width,
                     overwrite,
                 )
-                books = []
-                futures.append(batch)
 
-        # Run in parallel
+                futures.append(batch)
+                books_buffer = []
+
+        #
+        # Analyze batches in parallel
+        #
         for future in as_completed(futures):
             try:
                 future.result()
