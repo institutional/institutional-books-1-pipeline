@@ -98,3 +98,28 @@ def step02_export_simhash_eval_sheet(n_samples: int):
             samples_written += 1
 
     click.echo(f"✅ {output_filepath.name} saved to disk.")
+
+    #
+    # Print stats
+    #
+    total_books = ScannedTextSimhash.select().count()
+
+    total_books_with_hash = (
+        ScannedTextSimhash.select().where(ScannedTextSimhash.hash.is_null(False)).count()
+    )
+
+    total_unique_books = len(hashes_to_barcodes.keys())
+    total_unique_books_with_duplicates = 0
+    total_duplicate_books = 0
+
+    for simhash, books in hashes_to_barcodes.items():
+
+        if len(books) > 1:
+            total_unique_books_with_duplicates += 1
+            total_duplicate_books += len(books)
+
+    click.echo(f"📊 Books: {total_books}")
+    click.echo(f"📊 Books w/ text and simhash: {total_books_with_hash}")
+    click.echo(f"📊 Unique books: {total_unique_books}")
+    click.echo(f"📊 Unique books w/ at least 1 duplicate: {total_unique_books_with_duplicates}")
+    click.echo(f"📊 Duplicate books: {total_duplicate_books}")

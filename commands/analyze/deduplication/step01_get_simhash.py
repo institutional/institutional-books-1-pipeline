@@ -12,6 +12,10 @@ from utils import (
     process_db_write_batch,
 )
 from models import BookIO, ScannedTextSimhash
+from const import DEFAULT_SIMHASH_SHINGLE_WIDTH
+
+SIMHASH_SHORT_SHINGLE_WIDTH_LANGUAGE = ["chi", "zho", "jpn", "tha", "lao", "bur", "khm", "tib"]
+""" ISO693-2B codes of languages that require shorter shingle widths for Simhash. """
 
 
 @click.command("step01-get-simhash")
@@ -19,7 +23,7 @@ from models import BookIO, ScannedTextSimhash
     "--simhash-shingle-width",
     type=int,
     required=False,
-    default=6,
+    default=DEFAULT_SIMHASH_SHINGLE_WIDTH,
     help="Determines the size of the shingles used by simhash to measure similarity between texts.",
 )
 @click.option(
@@ -111,11 +115,14 @@ def step01_get_simhash(
 
 def process_books_batch(
     books: list[BookIO],
-    simhash_shingle_width: int = 6,
+    simhash_shingle_width: int = DEFAULT_SIMHASH_SHINGLE_WIDTH,
     overwrite: bool = False,
 ) -> bool:
     """
     Generates simhashes for a set of books and saves them.
+
+    Note:
+    - simhash_shingle_width is automatically reduced for books in specific languages for better accuracy
     """
     entries_to_create = []
     entries_to_update = []
@@ -123,6 +130,7 @@ def process_books_batch(
     for book in books:
         scanned_text_simhash = None
         already_exists = False
+        adjusted_simhash_shingle_width = simhash_shingle_width
 
         # Check if record already exists
         try:
@@ -137,6 +145,11 @@ def process_books_batch(
         except Exception:
             pass
 
+        # Adjust `simhash_shingle_width` based on ISO 639 2B language code
+        # NOTE: This list is likely incomplete
+        if book.csv_data["gxml Language"] in SIMHASH_SHORT_SHINGLE_WIDTH_LANGUAGE:
+            adjusted_simhash_shingle_width = 1
+
         # Prepare record
         scanned_text_simhash = ScannedTextSimhash() if not already_exists else scanned_text_simhash
         scanned_text_simhash.book = book.barcode
@@ -144,7 +157,13 @@ def process_books_batch(
         merged_text = "\n".join(book.jsonl_data["text_by_page"])
 
         if merged_text.strip():
-            hash = Simhash(get_simhash_features(merged_text, simhash_shingle_width))
+
+            hash = Simhash(
+                get_simhash_features(
+                    merged_text,
+                    adjusted_simhash_shingle_width,
+                )
+            )
             scanned_text_simhash.hash = hash.value
             click.echo(f"🧮 #{book.barcode} = {hash.value}")
         else:

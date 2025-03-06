@@ -1,7 +1,12 @@
 import re
 
+from const import DEFAULT_SIMHASH_SHINGLE_WIDTH
 
-def get_simhash_features(text: str, shingle_width: int = 6) -> list:
+
+def get_simhash_features(
+    text: str,
+    shingle_width: int = DEFAULT_SIMHASH_SHINGLE_WIDTH,
+) -> list:
     """
     Processes a string into a list of shingles for use with Simhash.
     via: https://leons.im/posts/a-python-implementation-of-simhash-algorithm/

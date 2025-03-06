@@ -96,3 +96,6 @@ TABLES = {
     "scanned_text_simhash": "ScannedTextSimhash",
 }
 """ Mapping: Table names to Model class name. """
+
+DEFAULT_SIMHASH_SHINGLE_WIDTH = 7
+""" Default size of Simhash shingles. """
