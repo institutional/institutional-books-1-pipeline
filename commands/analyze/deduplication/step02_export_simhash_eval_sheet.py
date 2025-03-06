@@ -36,7 +36,7 @@ def step02_export_simhash_eval_sheet(n_samples: int):
         f"deduplication-simhash-eval-sheet-{n_samples}-{DATETIME_SLUG}.csv",
     )
 
-    hashes_to_barcodes = {}
+    hashes_to_books = {}
 
     #
     # Collect group of identical barcodes
@@ -45,15 +45,15 @@ def step02_export_simhash_eval_sheet(n_samples: int):
     click.echo("📋 Collecting simhash to barcodes mappings ...")
     for entry in ScannedTextSimhash.select().order_by(peewee.fn.Random()).iterator():
         hash = entry.hash
-        barcode = entry.book.barcode
+        book = entry.book
 
         if hash is None:
             continue
 
-        if hashes_to_barcodes.get(hash, None) is None:
-            hashes_to_barcodes[hash] = []
+        if hashes_to_books.get(hash, None) is None:
+            hashes_to_books[hash] = []
 
-        hashes_to_barcodes[hash].append(barcode)
+        hashes_to_books[hash].append(book)
 
     #
     # Export samples
@@ -68,23 +68,21 @@ def step02_export_simhash_eval_sheet(n_samples: int):
         # Headers = simhash, gbooks_url_{1...20}
         writer.writerow(["simhash"] + [f"gbooks_url_{i}" for i in range(1, 21)])
 
-        for simhash, barcodes in hashes_to_barcodes.items():
+        for simhash, books in hashes_to_books.items():
             gbooks_urls = []
 
             if samples_written >= n_samples:
                 break
 
             # Focus on items that have at least 1 likely duplicate
-            if len(barcodes) < 2:
+            if len(books) < 2:
                 continue
 
             # Check that all barcodes are in the "VIEW_FULL" tranche.
             # This will help review items by eliminating entries that can't be checked online.
             not_all_view_full = False
 
-            for barcode in barcodes:
-                book = BookIO.get(barcode=barcode)
-
+            for book in books:
                 if book.tranche != "VIEW_FULL":
                     not_all_view_full = True
 
@@ -108,12 +106,11 @@ def step02_export_simhash_eval_sheet(n_samples: int):
         ScannedTextSimhash.select().where(ScannedTextSimhash.hash.is_null(False)).count()
     )
 
-    total_unique_books = len(hashes_to_barcodes.keys())
+    total_unique_books = len(hashes_to_books.keys())
     total_unique_books_with_duplicates = 0
     total_duplicate_books = 0
 
-    for simhash, books in hashes_to_barcodes.items():
-
+    for simhash, books in hashes_to_books.items():
         if len(books) > 1:
             total_unique_books_with_duplicates += 1
             total_duplicate_books += len(books)
