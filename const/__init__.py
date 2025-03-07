@@ -94,6 +94,7 @@ TABLES = {
     "genre_classification": "GenreClassification",
     "ocr_quality": "OCRQuality",
     "scanned_text_simhash": "ScannedTextSimhash",
+    "language_detection": "LanguageDetection",
 }
 """ Mapping: Table names to Model class name. """
 
