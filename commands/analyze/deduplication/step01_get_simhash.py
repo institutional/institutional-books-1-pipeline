@@ -145,7 +145,7 @@ def process_books_batch(
         scanned_text_simhash = ScannedTextSimhash() if not already_exists else scanned_text_simhash
         scanned_text_simhash.book = book.barcode
 
-        merged_text = "\n".join(book.jsonl_data["text_by_page"])
+        merged_text = book.merged_text
 
         if merged_text.strip():
             hash = Simhash(get_simhash_features(merged_text, simhash_shingle_width))

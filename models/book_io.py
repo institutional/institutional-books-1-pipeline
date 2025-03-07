@@ -124,3 +124,10 @@ class BookIO(peewee.Model):
     @csv_data.setter
     def csv_data(self, value):
         self.__csv_data = value
+
+    @property
+    def merged_text(self) -> str:
+        """
+        Returns the full OCR'd text of the book merged as a single string
+        """
+        return "\n".join(self.jsonl_data["text_by_page"])

@@ -118,7 +118,7 @@ def run_token_count(
             pass
 
         # Only run tokenizer if text is not empty
-        if "".join(text_by_page):
+        if book.merged_text.strip():
             # Tiktoken (GPT-X)
             if target_llm.startswith("openai"):
                 token_batches = tokenizer.encode_batch(text_by_page, num_threads=tokenizer_threads)
