@@ -13,11 +13,17 @@ import spacy
 import utils
 from models import BookIO, MainLanguage, LanguageDetection
 
-TIKTOKEN_TOKENIZER = "o200k_base"
+TOKENIZER_NAME = "o200k_base"
 """ Target tokenizer to be used with tiktoken """
 
-NLP_MODEL_NAME = "xx_sent_ud_sm"
+SPACY_MODEL_NAME = "xx_sent_ud_sm"
 """ Name of the model to be used by spaCy (specifically: multilingual sentence splitting) """
+
+MODULE_CACHE = {
+    "spacy_model": None | spacy.language.Language,
+    "tokenizer": None | tiktoken.Encoding,
+}
+""" Module level "cache" to keep models warm and pass them along. """
 
 
 @click.command("step02-detect")
@@ -63,30 +69,40 @@ def step02_detect(
 ):
     """
     Language-related experiments, step 02:
-    (WORK IN PROGRESS)
-    """
-    nlp = spacy.load(NLP_MODEL_NAME)
-    nlp.max_length = 1000 * 1000 * 1000
+    Runs a language detection algorithm on the full OCR'd text of books, in chunks.
 
+    For each book:
+    - Collects the distribution and proportion of all identified languages in LanguageDection
+    - Keeps track of the "main" detected language in MainLanguage (for comparison with metadata info)
+
+    Notes:
+    - Skips entries that were already analyzed, unless instructed otherwise.
+    """
+    #
     # Dependency: check that `main_language` was populated
+    #
     try:
         assert BookIO.select().count() == MainLanguage.select().count()
     except:
         click.echo("This command needs metadata-based language information. See step 01.")
         exit(1)
 
+    #
+    # Load models in cache
+    #
+    MODULE_CACHE["spacy_model"] = spacy.load(SPACY_MODEL_NAME)
+    MODULE_CACHE["spacy_model"].max_length = 1000 * 1000 * 1000
+    MODULE_CACHE["tokenizer"] = tiktoken.get_encoding(TOKENIZER_NAME)
+
+    #
     # Process books in parallel
+    #
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         futures = []
 
         for book in BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator():
-            future = executor.submit(
-                process_book,
-                book,
-                chunk_size,
-                nlp,
-                overwrite,
-            )
+            future = executor.submit(process_book, book, chunk_size, overwrite)
+            futures.append(future)
 
         for future in as_completed(futures):
             try:
@@ -101,21 +117,27 @@ def step02_detect(
 def process_book(
     book: BookIO,
     chunk_size: int,
-    nlp: spacy.language.Language,
     overwrite: bool = False,
 ) -> bool:
-    """ """
+    """
+    Runs text-level language detection on a single books.
+    - Splits text in chunks roughly identified as groups of sentences of max length X
+    - Runs detection on each chunk, collects main language and token count
+    - Summarize language distribution at book level
+    - Update MainLanguage and LanguageDistribution tables accordingly
+    """
     start_datetime = datetime.now()
 
     full_text = book.merged_text
-    doc = None
+    parsed_doc = None
     sentences = []
     chunks = []
 
     total_token_count = 0
     tokens_per_language = {}
 
-    tokenizer = tiktoken.get_encoding(TIKTOKEN_TOKENIZER)
+    spacy_model = MODULE_CACHE["spacy_model"]
+    tokenizer = MODULE_CACHE["tokenizer"]
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=0,
@@ -136,13 +158,17 @@ def process_book(
         ],
     )
 
+    # Stop here if models are not loaded
+    if not isinstance(spacy_model, spacy.language.Language):
+        raise TypeError("spaCy model is not ready.")
+
+    if not isinstance(tokenizer, tiktoken.Encoding):
+        raise TypeError("tiktoken model is not ready.")
+
     # Stop here if we don't have text
     if not full_text.strip():
+        click.echo(f"⏭️ #{book.barcode} does not have text.")
         return True
-
-    # Spacy model needs to be ready
-    if not isinstance(nlp, spacy.language.Language):
-        raise TypeError("spaCy model is not ready.")
 
     # Stop here if ovewrite is `False` and we've laready processed this record
     if (
@@ -155,8 +181,8 @@ def process_book(
     #
     # Split by sentence (roughly)
     #
-    doc = nlp(full_text)
-    sentences = [sent.text for sent in doc.sents]
+    parsed_doc = spacy_model(full_text)
+    sentences = [sent.text for sent in parsed_doc.sents]
 
     # Further split sentences that are > chunk_size
     for i, sentence in enumerate(sentences):
@@ -198,10 +224,9 @@ def process_book(
     #
     # For each chunk: count tokens, detect language
     #
-    for chunk in chunks:
+    for i, chunk in enumerate(chunks):
         token_count = len(tokenizer.encode(chunk))
         detection = franc.lang_detect(chunk)[0]
-
         lang = detection[0]
 
         if tokens_per_language.get(lang, None) is None:
@@ -245,7 +270,7 @@ def process_book(
                 iso693_2b=iso639.Lang(pt3=lang).pt2b,
                 iso639_3=lang,
                 token_count=token_count,
-                tokenizer=TIKTOKEN_TOKENIZER,
+                tokenizer=TOKENIZER_NAME,
                 percentage_of_total=token_count / total_token_count * 100,
                 detection_source="pyfranc",
             )
