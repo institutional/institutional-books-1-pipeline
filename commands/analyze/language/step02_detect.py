@@ -19,12 +19,6 @@ TOKENIZER_NAME = "o200k_base"
 SPACY_MODEL_NAME = "xx_sent_ud_sm"
 """ Name of the model to be used by spaCy (specifically: multilingual sentence splitting) """
 
-MODULE_CACHE = {
-    "spacy_model": None | spacy.language.Language,
-    "tokenizer": None | tiktoken.Encoding,
-}
-""" Module level "cache" to keep models warm and pass them along. """
-
 
 @click.command("step02-detect")
 @click.option(
@@ -88,13 +82,6 @@ def step02_detect(
         exit(1)
 
     #
-    # Load models in cache
-    #
-    MODULE_CACHE["spacy_model"] = spacy.load(SPACY_MODEL_NAME)
-    MODULE_CACHE["spacy_model"].max_length = 1000 * 1000 * 1000
-    MODULE_CACHE["tokenizer"] = tiktoken.get_encoding(TOKENIZER_NAME)
-
-    #
     # Process books in parallel
     #
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
@@ -136,8 +123,33 @@ def process_book(
     total_token_count = 0
     tokens_per_language = {}
 
-    spacy_model = MODULE_CACHE["spacy_model"]
-    tokenizer = MODULE_CACHE["tokenizer"]
+    spacy_model = None
+    tokenizer = None
+    text_splitter = None
+
+    # Stop here if we don't have text
+    if not full_text.strip():
+        click.echo(f"⏭️ #{book.barcode} does not have text.")
+        return True
+
+    # Stop here if ovewrite is `False` and we've laready processed this record
+    if (
+        not overwrite
+        and LanguageDetection.select().where(LanguageDetection.book == book.barcode).count()
+    ):
+        click.echo(f"⏭️ #{book.barcode} already analyzed.")
+        return True
+
+    #
+    # Load models
+    #
+
+    # NOTE: Loaded every time vs cached at module level to circumvent a memory leak in spacy
+    spacy_model = spacy.load(SPACY_MODEL_NAME)
+    spacy_model.max_length = 1000 * 1000 * 1000
+
+    tokenizer = tiktoken.get_encoding(TOKENIZER_NAME)
+
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=0,
@@ -157,26 +169,6 @@ def process_book(
             "",
         ],
     )
-
-    # Stop here if models are not loaded
-    if not isinstance(spacy_model, spacy.language.Language):
-        raise TypeError("spaCy model is not ready.")
-
-    if not isinstance(tokenizer, tiktoken.Encoding):
-        raise TypeError("tiktoken model is not ready.")
-
-    # Stop here if we don't have text
-    if not full_text.strip():
-        click.echo(f"⏭️ #{book.barcode} does not have text.")
-        return True
-
-    # Stop here if ovewrite is `False` and we've laready processed this record
-    if (
-        not overwrite
-        and LanguageDetection.select().where(LanguageDetection.book == book.barcode).count()
-    ):
-        click.echo(f"⏭️ #{book.barcode} already analyzed.")
-        return True
 
     #
     # Split by sentence (roughly)
@@ -278,5 +270,5 @@ def process_book(
 
     # Save records
     utils.process_db_write_batch(LanguageDetection, entries_to_create, [], [])
-    click.echo(f"🧮 {book.barcode} processed in {datetime.now() - start_datetime}.")
+    click.echo(f"🧮 #{book.barcode} processed in {datetime.now() - start_datetime}.")
     return True
