@@ -14,13 +14,13 @@ from models import BookIO, YearOfPublication
     help="If set, overwrites existing entries.",
 )
 @click.option(
-    "--start",
+    "--offset",
     type=int,
     required=False,
     help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
 )
 @click.option(
-    "--end",
+    "--limit",
     type=int,
     required=False,
     help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
@@ -35,8 +35,8 @@ from models import BookIO, YearOfPublication
 @utils.needs_pipeline_ready
 def extract_year_of_publication_from_metadata(
     overwrite: bool,
-    start: int | None,
-    end: int | None,
+    offset: int | None,
+    limit: int | None,
     db_write_batch_size: int,
 ):
     """
@@ -56,7 +56,7 @@ def extract_year_of_publication_from_metadata(
         YearOfPublication.source_field,
     ]
 
-    for book in BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator():
+    for book in BookIO.select().offset(offset).limit(limit).order_by(BookIO.barcode).iterator():
         year_of_publication = None
         already_exists = False
 

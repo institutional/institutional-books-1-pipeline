@@ -12,13 +12,13 @@ from models import BookIO, PageCount
     help="If set, overwrites existing entries.",
 )
 @click.option(
-    "--start",
+    "--offset",
     type=int,
     required=False,
     help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
 )
 @click.option(
-    "--end",
+    "--limit",
     type=int,
     required=False,
     help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
@@ -33,8 +33,8 @@ from models import BookIO, PageCount
 @utils.needs_pipeline_ready
 def run_page_count(
     overwrite: bool,
-    start: int | None,
-    end: int | None,
+    offset: int | None,
+    limit: int | None,
     db_write_batch_size: int,
 ):
     """
@@ -47,7 +47,7 @@ def run_page_count(
     entries_to_update = []
     fields_to_update = [PageCount.count_from_ocr, PageCount.count_from_metadata]
 
-    for book in BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator():
+    for book in BookIO.select().offset(offset).limit(limit).order_by(BookIO.barcode).iterator():
         page_count = None
         already_exists = False
 

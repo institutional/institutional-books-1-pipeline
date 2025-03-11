@@ -24,13 +24,13 @@ TOKENIZER_NAME = "o200k_base"
     help="If set, overwrites existing entries.",
 )
 @click.option(
-    "--start",
+    "--offset",
     type=int,
     required=False,
     help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
 )
 @click.option(
-    "--end",
+    "--limit",
     type=int,
     required=False,
     help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
@@ -52,8 +52,8 @@ TOKENIZER_NAME = "o200k_base"
 @utils.needs_pipeline_ready
 def step02_detect(
     overwrite: bool,
-    start: int | None,
-    end: int | None,
+    offset: int | None,
+    limit: int | None,
     chunk_size: int,
     max_workers: int,
 ):
@@ -83,7 +83,7 @@ def step02_detect(
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         futures = []
 
-        for book in BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator():
+        for book in BookIO.select().offset(offset).limit(limit).order_by(BookIO.barcode).iterator():
             future = executor.submit(process_book, book, chunk_size, overwrite)
             futures.append(future)
 

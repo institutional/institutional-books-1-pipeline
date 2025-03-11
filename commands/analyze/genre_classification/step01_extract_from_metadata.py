@@ -12,13 +12,13 @@ from models import BookIO, GenreClassification
     help="If set, overwrites existing entries.",
 )
 @click.option(
-    "--start",
+    "--offset",
     type=int,
     required=False,
     help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
 )
 @click.option(
-    "--end",
+    "--limit",
     type=int,
     required=False,
     help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
@@ -33,8 +33,8 @@ from models import BookIO, GenreClassification
 @utils.needs_pipeline_ready
 def step01_extract_from_metadata(
     overwrite: bool,
-    start: int | None,
-    end: int | None,
+    offset: int | None,
+    limit: int | None,
     db_write_batch_size: int,
 ):
     """
@@ -52,7 +52,7 @@ def step01_extract_from_metadata(
         GenreClassification.metadata_source,
     ]
 
-    for book in BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator():
+    for book in BookIO.select().offset(offset).limit(limit).order_by(BookIO.barcode).iterator():
         genre_classification = None
         already_exists = False
 

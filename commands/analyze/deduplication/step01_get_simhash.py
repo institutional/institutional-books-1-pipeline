@@ -30,13 +30,13 @@ from const import DEFAULT_SIMHASH_SHINGLE_WIDTH
     help="If set, overwrites existing entries.",
 )
 @click.option(
-    "--start",
+    "--offset",
     type=int,
     required=False,
     help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
 )
 @click.option(
-    "--end",
+    "--limit",
     type=int,
     required=False,
     help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
@@ -52,8 +52,8 @@ from const import DEFAULT_SIMHASH_SHINGLE_WIDTH
 def step01_get_simhash(
     simhash_shingle_width: int,
     overwrite: bool,
-    start: int | None,
-    end: int | None,
+    offset: int | None,
+    limit: int | None,
     max_workers: int,
 ):
     """
@@ -66,7 +66,7 @@ def step01_get_simhash(
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         futures = []
 
-        items_count = BookIO.select().offset(start).limit(end).count()
+        items_count = BookIO.select().offset(offset).limit(limit).count()
 
         batch_max_size = get_batch_max_size(
             items_count=items_count,
@@ -80,7 +80,7 @@ def step01_get_simhash(
         # Create batches of books to process
         #
         for i, book in enumerate(
-            BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator(),
+            BookIO.select().offset(offset).limit(limit).order_by(BookIO.barcode).iterator(),
             start=1,
         ):
             books_buffer.append(book)

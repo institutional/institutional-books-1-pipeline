@@ -29,13 +29,13 @@ import const
     help="If set, overwrites existing entries.",
 )
 @click.option(
-    "--start",
+    "--offset",
     type=int,
     required=False,
     help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
 )
 @click.option(
-    "--end",
+    "--limit",
     type=int,
     required=False,
     help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
@@ -52,8 +52,8 @@ def run_token_count(
     target_llm: str,
     tokenizer_threads: int,
     overwrite: bool,
-    start: int | None,
-    end: int | None,
+    offset: int | None,
+    limit: int | None,
     db_write_batch_size: int,
 ):
     """
@@ -97,7 +97,7 @@ def run_token_count(
     #
     # Count token for each record
     #
-    for book in BookIO.select().offset(start).limit(end).order_by(BookIO.barcode).iterator():
+    for book in BookIO.select().offset(offset).limit(limit).order_by(BookIO.barcode).iterator():
         token_count = None
         already_exists = False
         text_by_page = book.jsonl_data["text_by_page"]
