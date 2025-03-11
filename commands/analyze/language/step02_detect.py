@@ -8,16 +8,12 @@ import iso639
 import tiktoken
 from pyfranc import franc
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-import spacy
 
 import utils
 from models import BookIO, MainLanguage, LanguageDetection
 
 TOKENIZER_NAME = "o200k_base"
 """ Target tokenizer to be used with tiktoken """
-
-SPACY_MODEL_NAME = "xx_sent_ud_sm"
-""" Name of the model to be used by spaCy (specifically: multilingual sentence splitting) """
 
 
 @click.command("step02-detect")
@@ -116,14 +112,11 @@ def process_book(
     start_datetime = datetime.now()
 
     full_text = book.merged_text
-    parsed_doc = None
-    sentences = []
     chunks = []
 
     total_token_count = 0
     tokens_per_language = {}
 
-    spacy_model = None
     tokenizer = None
     text_splitter = None
 
@@ -140,16 +133,11 @@ def process_book(
         click.echo(f"⏭️ #{book.barcode} already analyzed.")
         return True
 
-    #
-    # Load models
-    #
-
-    # NOTE: Loaded every time vs cached at module level to circumvent a memory leak in spacy
-    spacy_model = spacy.load(SPACY_MODEL_NAME)
-    spacy_model.max_length = 1000 * 1000 * 1000
-
     tokenizer = tiktoken.get_encoding(TOKENIZER_NAME)
 
+    #
+    # Split text in chunks
+    #
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=0,
@@ -170,53 +158,18 @@ def process_book(
         ],
     )
 
-    #
-    # Split by sentence (roughly)
-    #
-    parsed_doc = spacy_model(full_text)
-    sentences = [sent.text for sent in parsed_doc.sents]
-
-    # Further split sentences that are > chunk_size
-    for i, sentence in enumerate(sentences):
-        if len(sentence) <= chunk_size:
-            continue
-
-        split = text_splitter.split_text(sentence)
-        sentences[i] = split
-
-    #
-    # Group sentences in chunks of length X
-    #
-    chunks.append("")  # First chunk
-    chunks_i = 0  # Index of chunk to add current sentence to
-
-    for sentence in sentences:
-        chunk = chunks[chunks_i]
-
-        # If sentence is string: add it directly to current chunk
-        if isinstance(sentence, str):
-            if len(chunk) + len(sentence) >= chunk_size:
-                chunks.append("")
-                chunks_i += 1
-                chunk = chunks[chunks_i]
-
-            chunk += f"{sentence} "
-            chunks[chunks_i] = chunk
-        # If sentence is a list of strings: add them separately to current chunk
-        if isinstance(sentence, list):
-            for sentence_chunk in sentence:
-                if len(chunk) + len(sentence_chunk) >= chunk_size:
-                    chunks.append("")
-                    chunks_i += 1
-                    chunk = chunks[chunks_i]
-
-                chunk += f"{sentence_chunk} "
-                chunks[chunks_i] = chunk
+    chunks = text_splitter.split_text(full_text)
 
     #
     # For each chunk: count tokens, detect language
     #
+    tokenizer = tiktoken.get_encoding(TOKENIZER_NAME)
+
     for i, chunk in enumerate(chunks):
+
+        if len(chunk) < 10:
+            continue
+
         token_count = len(tokenizer.encode(chunk))
         detection = franc.lang_detect(chunk)[0]
         lang = detection[0]
@@ -260,7 +213,7 @@ def process_book(
             LanguageDetection(
                 book=book.barcode,
                 iso693_2b=iso639.Lang(pt3=lang).pt2b,
-                iso639_3=lang,
+                iso693_3=lang,
                 token_count=token_count,
                 tokenizer=TOKENIZER_NAME,
                 percentage_of_total=token_count / total_token_count * 100,
