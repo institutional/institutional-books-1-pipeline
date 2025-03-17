@@ -21,6 +21,7 @@ def get_db() -> peewee.SqliteDatabase:
             "foreign_keys": 1,
             "ignore_check_constraints": 0,
         },
+        timeout=20,
     )
 
     try:

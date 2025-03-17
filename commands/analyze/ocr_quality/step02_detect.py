@@ -77,10 +77,18 @@ def step02_detect(
                 futures.append(future)
                 batch = []
 
-        # Run them in parallel
+        # Run them in parallel processes, update records as they come back
         for future in as_completed(futures):
             try:
-                future.result()
+                items = future.result()
+
+                utils.process_db_write_batch(
+                    OCRQuality,
+                    [],
+                    items,
+                    [OCRQuality.from_detection, OCRQuality.detection_source],
+                )
+
             except Exception:
                 click.echo(traceback.format_exc())
                 click.echo("Could not detect OCR quality in scanned texts. Interrupting.")
@@ -88,30 +96,26 @@ def step02_detect(
                 exit(1)
 
 
-def process_batch(items_to_update: list[OCRQuality]):
+def process_batch(items: list[OCRQuality]) -> list[OCRQuality]:
     """
     Processes a batch of OCRQuality entries.
-    Runs OCROScope on the text of each book associated with an OCRQuality record and saves results.
+    Runs OCROScope on the text of each book associated with an OCRQuality record.
     """
-    for ocr_quality in items_to_update:
-
+    for ocr_quality in items:
         text = ocr_quality.book.merged_text
 
         if not text.strip():
             click.echo(f"⏭️ #{ocr_quality.book.barcode} does not have text.")
             continue
 
-        analysis = ocr_evaluation(text=ocr_quality.book.merged_text)
-        analysis.calculate_ocr_rate()
+        try:
+            analysis = ocr_evaluation(text=text)
+            analysis.calculate_ocr_rate()
+            ocr_quality.from_detection = int(analysis.ratio_segment)
+            ocr_quality.detection_source = "pleias/OCRoscope"
+            click.echo(f"🧮 #{ocr_quality.book.barcode} = {ocr_quality.from_detection}")
+        except:
+            click.echo(f"⏭️ #{ocr_quality.book.barcode} could not be analyzed.")
+            pass
 
-        ocr_quality.from_detection = int(analysis.ratio_segment)
-        ocr_quality.detection_source = "pleias/OCRoscope"
-
-        click.echo(f"🧮 #{ocr_quality.book.barcode} = {ocr_quality.from_detection}")
-
-    utils.process_db_write_batch(
-        OCRQuality,
-        [],
-        items_to_update,
-        [OCRQuality.from_detection, OCRQuality.detection_source],
-    )
+    return items
