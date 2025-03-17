@@ -1599,6 +1599,24 @@ files = [
 ]
 
 [[package]]
+name = "OCRoscope"
+version = "0.1.0"
+description = "A Python package for OCR evaluation metrics"
+optional = false
+python-versions = "*"
+files = []
+develop = false
+
+[package.dependencies]
+pycld2 = "*"
+
+[package.source]
+type = "git"
+url = "https://github.com/Pleias/OCRoscope.git"
+reference = "HEAD"
+resolved_reference = "cb37caafbc8c6fd4c71d20f2b415011c07c18d46"
+
+[[package]]
 name = "openai"
 version = "1.64.0"
 description = "The official Python library for the openai API"
@@ -1918,6 +1936,16 @@ files = [
 [package.extras]
 dev = ["abi3audit", "black (==24.10.0)", "check-manifest", "coverage", "packaging", "pylint", "pyperf", "pypinfo", "pytest", "pytest-cov", "pytest-xdist", "requests", "rstcheck", "ruff", "setuptools", "sphinx", "sphinx_rtd_theme", "toml-sort", "twine", "virtualenv", "vulture", "wheel"]
 test = ["pytest", "pytest-xdist", "setuptools"]
+
+[[package]]
+name = "pycld2"
+version = "0.41"
+description = "Python bindings around Google Chromium's embedded compact language detection library (CLD2)"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pycld2-0.41.tar.gz", hash = "sha256:a42f6e974df8fdd70685c2baa8a9f523069a260e1140ce604fb9f1fb6c3064df"},
+]
 
 [[package]]
 name = "pycparser"
@@ -3250,4 +3278,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "5df2be4a54489d61b080a579f3ade74f07fa36158e017f4e58db6bcc06401072"
+content-hash = "be706100c4e6b26c5515983bbef338b2a2097a79ca606ab205c799ef06a3e1eb"

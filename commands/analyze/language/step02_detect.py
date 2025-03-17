@@ -92,7 +92,7 @@ def step02_detect(
                 future.result()
             except Exception:
                 click.echo(traceback.format_exc())
-                click.echo("Could not detect languages on scanned texts. Interrupting.")
+                click.echo("Could not detect languages in scanned texts. Interrupting.")
                 executor.shutdown(wait=False, cancel_futures=True)
                 exit(1)
 

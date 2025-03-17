@@ -31,6 +31,7 @@ humanize = "^4.12.1"
 tiktoken = "^0.9.0"
 protobuf = "^5.29.3"
 sentencepiece = "^0.2.0"
+ocroscope = {git = "https://github.com/Pleias/OCRoscope.git"}
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
