@@ -128,6 +128,21 @@ class BookIO(peewee.Model):
     @property
     def merged_text(self) -> str:
         """
-        Returns the full OCR'd text of the book merged as a single string
+        Returns the full OCR'd text of the current book merged as a single string
         """
         return "\n".join(self.jsonl_data["text_by_page"])
+
+    @property
+    def continuous_character_count(self) -> int:
+        """
+        Returns the total number of "continous" characters in the OCR'd text of the current book.
+        This attempts to exclude line breaks and spaces.
+        """
+        return len(
+            self.merged_text.replace(" ", "")
+            .replace("\n", "")
+            .replace("\t", "")
+            .replace("\u200b", "")
+            .replace("-", "")
+            .replace("—", "")
+        )

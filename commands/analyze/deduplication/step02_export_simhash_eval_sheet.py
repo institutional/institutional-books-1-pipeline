@@ -1,6 +1,7 @@
 import csv
 from pathlib import Path
 import random
+import multiprocessing
 
 import click
 import peewee
@@ -8,6 +9,7 @@ import peewee
 import utils
 from models import BookIO, ScannedTextSimhash
 from const import OUTPUT_MISC_DIR_PATH, DATETIME_SLUG
+from . import get_filtered_duplicates
 
 
 @click.command("step02-export-simhash-eval-sheet")
@@ -18,8 +20,15 @@ from const import OUTPUT_MISC_DIR_PATH, DATETIME_SLUG
     default=100,
     help="Number of items to pull for validation.",
 )
+@click.option(
+    "--max-workers",
+    type=int,
+    required=False,
+    default=multiprocessing.cpu_count(),
+    help="Determines how many subprocesses can be run in parallel.",
+)
 @utils.needs_pipeline_ready
-def step02_export_simhash_eval_sheet(n_samples: int):
+def step02_export_simhash_eval_sheet(n_samples: int, max_workers: int):
     """
     Collection-level items deduplication, step 02:
     Generates and exports an evaluation sheet for manual review.
@@ -37,23 +46,16 @@ def step02_export_simhash_eval_sheet(n_samples: int):
     )
 
     hashes_to_books = {}
+    sampled_hashes = []
 
     #
-    # Collect group of identical barcodes
+    # Collect group of duplicates
     #
-    # Note: table is shuffled, hashes are written in dict in order of appeareance: dict is reasonably shuffled.
-    click.echo("📋 Collecting simhash to barcodes mappings ...")
-    for entry in ScannedTextSimhash.select().order_by(peewee.fn.Random()).iterator():
-        hash = entry.hash
-        book = entry.book
+    click.echo("📋 Collecting likely duplicates ...")
+    hashes_to_books = get_filtered_duplicates(max_workers)
 
-        if hash is None:
-            continue
-
-        if hashes_to_books.get(hash, None) is None:
-            hashes_to_books[hash] = []
-
-        hashes_to_books[hash].append(book)
+    # Pick n_samples hashes
+    sampled_hashes = random.shuffle(list(hashes_to_books.keys()))[0:n_samples]
 
     #
     # Export samples
@@ -68,7 +70,8 @@ def step02_export_simhash_eval_sheet(n_samples: int):
         # Headers = simhash, gbooks_url_{1...20}
         writer.writerow(["simhash"] + [f"gbooks_url_{i}" for i in range(1, 21)])
 
-        for simhash, books in hashes_to_books.items():
+        for simhash in sampled_hashes:
+            book = hashes_to_books[simhash]
             gbooks_urls = []
 
             if samples_written >= n_samples:
@@ -95,7 +98,7 @@ def step02_export_simhash_eval_sheet(n_samples: int):
 
             samples_written += 1
 
-    click.echo(f"✅ {output_filepath.name} saved to disk.")
+    click.echo(f"✅ {output_filepath.name} saved to disk ({n_samples} samples).")
 
     #
     # Print stats
