@@ -9,7 +9,7 @@ import utils
 from models import BookIO, OCRQuality
 
 
-@click.command("step02-detect")
+@click.command("run-ocr-quality-detection")
 @click.option(
     "--offset",
     type=int,
@@ -30,17 +30,17 @@ from models import BookIO, OCRQuality
     help="Determines how many subprocesses can be run in parallel.",
 )
 @utils.needs_pipeline_ready
-def step02_detect(
+def run_ocr_quality_detection(
     offset: int | None,
     limit: int | None,
     max_workers: int,
 ):
     """
-    OCR quality experiments, step 02:
-    Runs Pleais/OCROScope on the OCR'd text of each book as a way to collect a secondary quality metric.
+    Runs Pleais/OCROScope on the OCR'd text of each book as a way to collect a secondary OCR quality metric.
 
     Notes:
-    - Skips entries that were already analyzed, unless instructed otherwise.
+    - Skips entries that were already analyzed, unless instructed otherwise
+    - Requires the `ocr_quality` table to be populated, see `analyze extract-ocr-quality-from-metadata` (for comparison with metadata info)
     """
     #
     # Dependency: check that `ocr_quality` was populated with metadata

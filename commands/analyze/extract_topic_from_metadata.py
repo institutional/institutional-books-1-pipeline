@@ -4,7 +4,7 @@ import utils
 from models import BookIO, TopicClassification
 
 
-@click.command("step01-extract-from-metadata")
+@click.command("extract-topic-from-metadata")
 @click.option(
     "--overwrite",
     is_flag=True,
@@ -31,7 +31,7 @@ from models import BookIO, TopicClassification
     help="Determines the frequency at which records are pushed to the database. By default: once every 10,000 record creation/update request.",
 )
 @utils.needs_pipeline_ready
-def step01_extract_from_metadata(
+def extract_topic_from_metadata(
     overwrite: bool,
     start: int | None,
     end: int | None,

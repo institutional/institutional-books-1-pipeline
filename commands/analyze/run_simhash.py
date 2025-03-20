@@ -15,7 +15,7 @@ from models import BookIO, ScannedTextSimhash
 from const import DEFAULT_SIMHASH_SHINGLE_WIDTH
 
 
-@click.command("step01-get-simhash")
+@click.command("run-simhash")
 @click.option(
     "--simhash-shingle-width",
     type=int,
@@ -49,7 +49,7 @@ from const import DEFAULT_SIMHASH_SHINGLE_WIDTH
     help="Determines how many subprocesses can be run in parallel.",
 )
 @needs_pipeline_ready
-def step01_get_simhash(
+def run_simhash(
     simhash_shingle_width: int,
     overwrite: bool,
     offset: int | None,
@@ -57,8 +57,7 @@ def step01_get_simhash(
     max_workers: int,
 ):
     """
-    Collection-level items deduplication, step 01:
-    Generate a simhash for every item in the collection.
+    Generate a simhash for every item in the collection as a way to identify near duplicates.
 
     Notes:
     - Skips entries that were already analyzed, unless instructed otherwise.

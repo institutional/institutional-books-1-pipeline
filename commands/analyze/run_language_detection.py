@@ -16,7 +16,7 @@ TOKENIZER_NAME = "o200k_base"
 """ Target tokenizer to be used with tiktoken """
 
 
-@click.command("step02-detect")
+@click.command("run-language-detection")
 @click.option(
     "--overwrite",
     is_flag=True,
@@ -50,7 +50,7 @@ TOKENIZER_NAME = "o200k_base"
     help="Determines how many subprocesses can be run in parallel.",
 )
 @utils.needs_pipeline_ready
-def step02_detect(
+def run_language_detection(
     overwrite: bool,
     offset: int | None,
     limit: int | None,
@@ -58,15 +58,15 @@ def step02_detect(
     max_workers: int,
 ):
     """
-    Language-related experiments, step 02:
-    Runs a language detection algorithm on the full OCR'd text of books, in chunks.
+    Runs a language detection algorithm on the OCR'd text of books, in chunks.
 
     For each book:
-    - Collects the distribution and proportion of all identified languages in LanguageDection
-    - Keeps track of the "main" detected language in MainLanguage (for comparison with metadata info)
+    - Collects the distribution and proportion of all identified languages in `language_detection`
+    - Keeps track of the "main" detected language in `main_language` (for comparison with metadata info)
 
     Notes:
-    - Skips entries that were already analyzed, unless instructed otherwise.
+    - Skips entries that were already analyzed, unless instructed otherwise
+    - Requires the `main_lanaguage`` table to be populated. See `analyze extract-main-language-from-metadata`
     """
     #
     # Dependency: check that `main_language` was populated
