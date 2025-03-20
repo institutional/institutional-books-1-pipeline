@@ -57,7 +57,7 @@ def run_simhash(
     max_workers: int,
 ):
     """
-    Generate a simhash for every item in the collection as a way to identify near duplicates.
+    Generate a simhash for every OCR'd text in the collection as a way to coarsely identify near duplicates.
 
     Notes:
     - Skips entries that were already analyzed, unless instructed otherwise.
@@ -104,7 +104,7 @@ def run_simhash(
                 future.result()
             except Exception:
                 click.echo(traceback.format_exc())
-                click.echo("Could not run simhash on scanned texts. Interrupting.")
+                click.echo("Could not run simhash on OCR'd texts. Interrupting.")
                 executor.shutdown(wait=False, cancel_futures=True)
                 exit(1)
 
@@ -116,9 +116,6 @@ def process_books_batch(
 ) -> bool:
     """
     Generates simhashes for a set of books and saves them.
-
-    Note:
-    - simhash_shingle_width is automatically reduced for books in specific languages for better accuracy
     """
     entries_to_create = []
     entries_to_update = []
@@ -126,6 +123,7 @@ def process_books_batch(
     for book in books:
         scanned_text_simhash = None
         already_exists = False
+        merged_text = None
 
         # Check if record already exists
         try:
@@ -151,7 +149,7 @@ def process_books_batch(
             scanned_text_simhash.hash = hash.value
             click.echo(f"🧮 #{book.barcode} = {hash.value}")
         else:
-            click.echo(f"🧮 #{book.barcode} does not have text.")
+            click.echo(f"⏭️ #{book.barcode} does not have text.")
 
         # Add to batch
         if already_exists:

@@ -74,7 +74,10 @@ def run_language_detection(
     try:
         assert BookIO.select().count() == MainLanguage.select().count()
     except:
-        click.echo("This command needs metadata-based language information. See step 01.")
+        click.echo(
+            "This command needs metadata-based language information. "
+            + "See `extract-main-language-from-metadata`."
+        )
         exit(1)
 
     #

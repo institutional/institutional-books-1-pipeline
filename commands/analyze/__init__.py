@@ -10,6 +10,7 @@ from .extract_year_of_publication_from_metadata import extract_year_of_publicati
 from .run_language_detection import run_language_detection
 from .run_ocr_quality_detection import run_ocr_quality_detection
 from .run_simhash import run_simhash
+from .run_text_analysis import run_text_analysis
 from .run_token_count import run_token_count
 
 
@@ -30,3 +31,4 @@ analyze.add_command(run_language_detection)
 analyze.add_command(run_ocr_quality_detection)
 analyze.add_command(run_simhash)
 analyze.add_command(run_token_count)
+analyze.add_command(run_text_analysis)

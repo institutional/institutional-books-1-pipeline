@@ -48,7 +48,10 @@ def run_ocr_quality_detection(
     try:
         assert BookIO.select().count() == OCRQuality.select().count()
     except:
-        click.echo("This command needs metadata-based OCR quality data. See step 01.")
+        click.echo(
+            "This command needs metadata-based OCR quality data. "
+            + "See `extract-ocr-quality-from-metadata`."
+        )
         exit(1)
 
     #
@@ -116,6 +119,5 @@ def process_batch(items: list[OCRQuality]) -> list[OCRQuality]:
             click.echo(f"🧮 #{ocr_quality.book.barcode} = {ocr_quality.from_detection}")
         except:
             click.echo(f"⏭️ #{ocr_quality.book.barcode} could not be analyzed.")
-            pass
 
     return items

@@ -95,6 +95,7 @@ TABLES = {
     "ocr_quality": "OCRQuality",
     "scanned_text_simhash": "ScannedTextSimhash",
     "language_detection": "LanguageDetection",
+    "text_analysis": "TextAnalysis",
 }
 """ Mapping: Table names to Model class name. """
 
