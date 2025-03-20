@@ -27,10 +27,18 @@ def get_filtered_duplicates(max_workers: int = multiprocessing.cpu_count()) -> d
     Returns a filtered list of duplicates.
     Groups books by simhash, further filter them by detected language and char count.
     """
-    from models import ScannedTextSimhash
+    from models import ScannedTextSimhash, MainLanguage
 
     hashes_to_books = {}
     hashes_to_discard = set()
+
+    # Check that language detection info is available
+    try:
+        assert (
+            MainLanguage.select().where(MainLanguage.from_detection_iso693_3.is_null(False)).count()
+        )
+    except:
+        raise Exception("Language detection data not available.")
 
     #
     # Group all books by simhash into a hashmap
@@ -137,7 +145,6 @@ def __filter_by_continuous_char_length(books: list) -> list:
     Eliminates from group of suspected duplicates books that have character count different > or < 33% of group median.
 
     Notes:
-    - Books with character counts inferior to 200K will not be filtered
     - Books are compared using "continous char length" (char length without spaces and line breaks)
     """
     filtered = []
@@ -147,10 +154,10 @@ def __filter_by_continuous_char_length(books: list) -> list:
     for book in books:
         char_count = book.continuous_character_count
 
-        if char_count >= 200_000 and char_count > int(median_char_count * 1.33):
+        if char_count > int(median_char_count * 1.2):
             continue
 
-        if char_count >= 200_000 and char_count < int(median_char_count / 1.33):
+        if char_count < int(median_char_count / 1.2):
             continue
 
         filtered.append(book)

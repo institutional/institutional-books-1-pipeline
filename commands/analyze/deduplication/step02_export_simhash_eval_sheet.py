@@ -55,10 +55,10 @@ def step02_export_simhash_eval_sheet(n_samples: int, max_workers: int):
     click.echo("📋 Collecting likely duplicates ...")
     hashes_to_books = get_filtered_duplicates(max_workers)
 
-    # Pick n_samples hashes
+    # Pick `n_samples` hashes (double `n_samples` to account for export filters)
     sampled_hashes = list(hashes_to_books.keys())
     random.shuffle(sampled_hashes)
-    sampled_hashes = sampled_hashes[0:n_samples]
+    sampled_hashes = sampled_hashes[0 : n_samples + n_samples]
 
     #
     # Export samples
@@ -112,7 +112,6 @@ def step02_export_simhash_eval_sheet(n_samples: int, max_workers: int):
         ScannedTextSimhash.select().where(ScannedTextSimhash.hash.is_null(False)).count()
     )
 
-    total_unique_books = len(hashes_to_books.keys())
     total_unique_books_with_duplicates = 0
     total_duplicate_books = 0
 
