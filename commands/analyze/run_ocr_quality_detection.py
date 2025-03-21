@@ -103,6 +103,10 @@ def process_batch(items: list[OCRQuality]) -> list[OCRQuality]:
     """
     Processes a batch of OCRQuality entries.
     Runs OCROScope on the text of each book associated with an OCRQuality record.
+
+    NOTE:
+    - Items need to be returned to the main process before being saved in that context.
+      This is because we opened the connection fo OCRQuality items in the main process.
     """
     for ocr_quality in items:
         text = ocr_quality.book.merged_text

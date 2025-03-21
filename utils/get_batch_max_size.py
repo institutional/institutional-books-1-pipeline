@@ -1,7 +1,7 @@
 import multiprocessing
 
 
-def get_batch_max_size(items_count: int, max_workers=0) -> int:
+def get_batch_max_size(items_count: int, max_workers=1) -> int:
     """
     Returns a "likely reasonable" batch max size for multiprocessing purposes based on:
     - The number of items to process

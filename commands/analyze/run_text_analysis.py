@@ -10,7 +10,7 @@ import polyglot
 import polyglot.text
 import tiktoken
 
-from utils import needs_pipeline_ready, get_batch_max_size, process_db_write_batch
+from utils import needs_pipeline_ready, get_batch_max_size, process_db_write_batch, get_db
 from models import BookIO, TextAnalysis, MainLanguage
 
 TOKENIZER_NAME = "o200k_base"
@@ -112,7 +112,7 @@ def run_text_analysis(
                 exit(1)
 
 
-def process_books_batch(books: list[BookIO], overwrite: bool = False) -> bool:
+def process_books_batch(books: list[BookIO], overwrite: bool = False) -> tuple:
     """
     Generates text analysis metrics for a set of books and saves them.
     """
@@ -129,8 +129,7 @@ def process_books_batch(books: list[BookIO], overwrite: bool = False) -> bool:
         # Check if record already exists
         #
         try:
-            # throws if not found
-            text_analysis = TextAnalysis.get(book=book.barcode)
+            text_analysis = TextAnalysis.get(book=book.barcode)  # throws if not found
             assert text_analysis
             already_exists = True
 
@@ -144,34 +143,40 @@ def process_books_batch(books: list[BookIO], overwrite: bool = False) -> bool:
         # Prepare record, analyze merged text
         #
         text_analysis = TextAnalysis() if not already_exists else text_analysis
+
         text_analysis.book = book.barcode
+        text_analysis.char_count = 0
+        text_analysis.char_count_continous = 0
+
         merged_text = book.merged_text
 
         if not merged_text.strip():
-            text_analysis.char_count = 0
-            text_analysis.char_count_continous = 0
             click.echo(f"⏭️ #{book.barcode} does not have text.")
+            pass
         else:
             #
             # Split text into words/sentences/n-grams
             #
+
+            # Get language code hint
             language_code = None
 
-            # Get language code from detection if available
+            # ... from detection if available
             try:
                 language_code = book.mainlanguage_set[0].from_detection_iso693_3
                 language_code = iso639.Lang(pt3=language_code).pt1
                 assert language_code
             except:
-                pass
+                language_code = None
 
-            # Use language code from metadata otherwise
+            # ... from metadata otherwise, default to "en" if none is available
             try:
                 assert language_code is None
                 language_code = book.mainlanguage_set[0].from_metadata_iso693_2b
                 language_code = iso639.Lang(pt2b=language_code).pt1
+                assert language_code
             except:
-                pass
+                language_code = "en"
 
             nlp_text = polyglot.text.Text(
                 merged_text.replace("\u200b", "").replace("\n", ""),
@@ -248,13 +253,17 @@ def process_books_batch(books: list[BookIO], overwrite: bool = False) -> bool:
 
             click.echo(f"🧮 #{book.barcode} processed in {datetime.now() - start_datetime}.")
 
+        #
         # Add to batch
+        #
         if already_exists:
             entries_to_update.append(text_analysis)
         else:
             entries_to_create.append(text_analysis)
 
+    #
     # Save batches
+    #
     process_db_write_batch(
         TextAnalysis,
         entries_to_create,

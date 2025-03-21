@@ -20,6 +20,8 @@ def get_db() -> peewee.SqliteDatabase:
             "cache_size": -1 * 64000,
             "foreign_keys": 1,
             "ignore_check_constraints": 0,
+            "busy_timeout": 5000,
+            "temp_store": "memory",
         },
         timeout=20,
     )

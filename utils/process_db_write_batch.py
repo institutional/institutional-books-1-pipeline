@@ -1,5 +1,7 @@
 import peewee
 
+from utils import get_db
+
 
 def process_db_write_batch(
     model: peewee.Model,
@@ -15,7 +17,8 @@ def process_db_write_batch(
     """
     # Calculates the optimal size for SQLite based on max variable number
     # https://www.sqlite.org/limits.html#max_variable_number
-    sqlite_batch_size = 32766 // len(model._meta.fields.keys())
+    sqlite_batch_size = (32766 / 2) // len(model._meta.fields.keys())
+    sqlite_batch_size = int(sqlite_batch_size)
 
     if entries_to_create:
         model.bulk_create(entries_to_create, batch_size=sqlite_batch_size)
