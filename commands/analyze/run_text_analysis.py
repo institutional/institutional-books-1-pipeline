@@ -192,34 +192,42 @@ def process_books_batch(books: list[BookIO], overwrite: bool = False) -> tuple:
             # Compute: fragment counts (total/unique) and type token ratios
             #
             words_counter = Counter(words)
-            text_analysis.word_type_token_ratio = len(words_counter) / len(words) * 100
-            text_analysis.word_count = len(words)
-            text_analysis.word_count_unique = len(words_counter)
+            bigrams_counter = Counter(bigrams)
+            trigrams_counter = Counter(trigrams)
+            sentences_counter = Counter(sentences)
+
+            if len(words):
+                text_analysis.word_type_token_ratio = len(words_counter) / len(words) * 100
+                text_analysis.word_count = len(words)
+                text_analysis.word_count_unique = len(words_counter)
             del words_counter
 
-            bigrams_counter = Counter(bigrams)
-            text_analysis.bigram_type_token_ratio = len(bigrams_counter) / len(bigrams) * 100
-            text_analysis.bigram_count = len(bigrams)
-            text_analysis.bigram_count_unique = len(bigrams_counter)
+            if len(bigrams):
+                text_analysis.bigram_type_token_ratio = len(bigrams_counter) / len(bigrams) * 100
+                text_analysis.bigram_count = len(bigrams)
+                text_analysis.bigram_count_unique = len(bigrams_counter)
             del bigrams_counter
 
-            trigrams_counter = Counter(trigrams)
-            text_analysis.trigram_type_token_ratio = len(trigrams_counter) / len(trigrams) * 100
-            text_analysis.trigram_count = len(trigrams)
-            text_analysis.trigram_count_unique = len(trigrams_counter)
+            if len(trigrams):
+                text_analysis.trigram_type_token_ratio = len(trigrams_counter) / len(trigrams) * 100
+                text_analysis.trigram_count = len(trigrams)
+                text_analysis.trigram_count_unique = len(trigrams_counter)
             del trigrams_counter
 
-            sentences_counter = Counter(sentences)
-            text_analysis.sentence_type_token_ratio = len(sentences_counter) / len(sentences) * 100
-            text_analysis.sentence_count = len(sentences)
-            text_analysis.sentence_count_unique = len(sentences_counter)
+            if len(sentences):
+                sentence_type_token_ratio = len(sentences_counter) / len(sentences) * 100
+                text_analysis.sentence_type_token_ratio = sentence_type_token_ratio
+
+                text_analysis.sentence_count = len(sentences)
+                text_analysis.sentence_count_unique = len(sentences_counter)
             del sentences_counter
 
             #
             # Compute average sentence length
             #
-            sentences_char_count = sum([len(sentence) for sentence in sentences])
-            text_analysis.sentence_average_length = sentences_char_count / len(sentences)
+            if len(sentences):
+                sentences_char_count = sum([len(sentence) for sentence in sentences])
+                text_analysis.sentence_average_length = sentences_char_count / len(sentences)
 
             #
             # Compute char counts
@@ -243,9 +251,10 @@ def process_books_batch(books: list[BookIO], overwrite: bool = False) -> tuple:
             for word in words:
                 total_word_tokens += len(tokenizer.encode(word))
 
-            text_analysis.tokenizability_o200k_base_ratio = (
-                len(words) * 1.25 / total_word_tokens * 100
-            )
+            if total_word_tokens:
+                text_analysis.tokenizability_o200k_base_ratio = (
+                    len(words) * 1.25 / total_word_tokens * 100
+                )
 
             # NOTE: Score may exceed 100 because of our 1 token = 1.25 word target
             if text_analysis.tokenizability_o200k_base_ratio > 100.0:

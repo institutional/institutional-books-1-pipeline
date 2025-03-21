@@ -18,12 +18,13 @@ def get_db() -> peewee.SqliteDatabase:
         pragmas={
             "journal_mode": "wal",
             "cache_size": -1 * 64000,
+            # "cache_size": -1 * 512000,
             "foreign_keys": 1,
             "ignore_check_constraints": 0,
-            "busy_timeout": 5000,
+            "busy_timeout": 10000,
             "temp_store": "memory",
         },
-        timeout=20,
+        timeout=30,
     )
 
     try:
