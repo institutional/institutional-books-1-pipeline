@@ -8,9 +8,8 @@ import peewee
 
 def get_filtered_duplicates(max_workers: int = multiprocessing.cpu_count()) -> dict:
     """
-    WORK IN PROGRESS
     Returns a filtered list of duplicate books.
-    Groups books by simhash, further filter them by detected language and char count.
+    Groups books by simhash, further filter them by detected language and continuous char count.
     """
     from models import BookIO, ScannedTextSimhash, MainLanguage, TextAnalysis
 
@@ -32,11 +31,7 @@ def get_filtered_duplicates(max_workers: int = multiprocessing.cpu_count()) -> d
 
     try:
         assert (
-            MainLanguage.select()
-            .where(
-                MainLanguage.from_detection_iso693_3.is_null(False),
-            )
-            .count()
+            MainLanguage.select().where(MainLanguage.from_detection_iso693_3.is_null(False)).count()
         )
     except:
         raise Exception("Language detection data is not available.")
@@ -141,7 +136,7 @@ def __filter_by_detected_language(books: list) -> list:
 
 def __filter_by_continuous_char_length(books: list) -> list:
     """
-    Eliminates from group of suspected duplicates books that have character count different > or < 33% of group median.
+    Eliminates from group of suspected duplicates books that have character count different > or < 15% of group median.
 
     Notes:
     - Books are compared using "continous char length" (char length without spaces and line breaks)
@@ -153,10 +148,10 @@ def __filter_by_continuous_char_length(books: list) -> list:
     for book in books:
         char_count = book.textanalysis_set[0].char_count_continous
 
-        if char_count and char_count > int(median_char_count * 1.2):
+        if char_count and char_count > int(median_char_count * 1.15):
             continue
 
-        if char_count and char_count < int(median_char_count / 1.2):
+        if char_count and char_count < int(median_char_count / 1.15):
             continue
 
         filtered.append(book)
