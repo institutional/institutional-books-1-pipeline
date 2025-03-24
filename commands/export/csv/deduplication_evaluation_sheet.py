@@ -124,14 +124,28 @@ def deduplication_evaluation_sheet(n_samples: int, max_workers: int):
 
         writer.writerow(["Total books", total_books])
 
-        writer.writerow(["Total books w/ text and simhash", total_books_with_simhash])
-
-        writer.writerow(["Total duplicate books", total_duplicate_books])
+        writer.writerow(["Total books with text", total_books_with_simhash])
 
         writer.writerow(
             [
-                "Unique books w/ at least 1 duplicate",
+                "Total books with text and at least one duplicate (inclusive)",
+                total_duplicate_books,
+            ]
+        )
+
+        writer.writerow(
+            [
+                "Total unique books with text in duplicate set",
                 total_unique_books_with_duplicates,
+            ]
+        )
+
+        writer.writerow(
+            [
+                "Total unique books with text in collection",
+                total_books_with_simhash
+                - total_duplicate_books
+                + total_unique_books_with_duplicates,
             ]
         )
 
