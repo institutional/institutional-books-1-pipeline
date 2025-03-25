@@ -61,7 +61,7 @@ FIELDS_TO_EXPORT = [
 @utils.needs_pipeline_ready
 def simplified_source_metadata():
     """
-    Simplified CSV export of the metadata originally coming from Google / Harvard Library.
+    Simplified CSV export of the metadata originally coming from GRIN.
 
     Saved as:
      - `/data/output/export/simplified-source-metadata-{datetime}.csv`
