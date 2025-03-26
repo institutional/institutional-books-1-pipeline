@@ -56,11 +56,9 @@ def get_metadata_as_text_prompt(
         assert main_language
 
         main_language = iso639.Lang(pt3=main_language).name
-
         prompt += f"Language: {main_language}\n"
-    except Exception as err:
-        print(err)
-        exit()
+    except Exception:
+        pass
 
     # Topic
     if not skip_topic:
