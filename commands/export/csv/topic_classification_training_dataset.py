@@ -36,4 +36,13 @@ def topic_classification_training_dataset():
                 .where(TopicClassificationTrainingDataset.set == set)
                 .iterator()
             ):
-                pass
+                text = utils.get_metadata_as_text_prompt(
+                    entry.book,
+                    skip_topic=True,
+                    skip_genre=True,
+                )
+                target = entry.target_topic
+
+                writer.writerow([text, target])
+
+            click.echo(f"✅ {output_filepath.name} saved to disk.")
