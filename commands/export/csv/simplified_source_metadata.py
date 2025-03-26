@@ -64,7 +64,7 @@ def simplified_source_metadata():
     Simplified CSV export of the metadata originally coming from GRIN.
 
     Saved as:
-     - `/data/output/export/simplified-source-metadata-{datetime}.csv`
+    - `/data/output/export/simplified-source-metadata-{datetime}.csv`
     """
     output_filepath = Path(
         OUTPUT_EXPORT_DIR_PATH,

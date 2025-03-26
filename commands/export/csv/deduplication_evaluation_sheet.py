@@ -31,8 +31,8 @@ def deduplication_evaluation_sheet(n_samples: int, max_workers: int):
     Exports a CSV sheet to evaluate the accuracy of our collection-level items deduplication method.
 
     Saved as:
-     - `/data/output/export/deduplication-eval-sheet-{n-samples}-{datetime}.csv`
-     - `/data/output/export/deduplication-eval-sheet-stats-{datetime}.csv`
+    - `/data/output/export/deduplication-eval-sheet-{n-samples}-{datetime}.csv`
+    - `/data/output/export/deduplication-eval-sheet-stats-{datetime}.csv`
     """
     hashes_to_books = {}
     hashes_to_books_sample = {}

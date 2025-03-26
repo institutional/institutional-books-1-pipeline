@@ -1,0 +1,39 @@
+import csv
+from pathlib import Path
+import random
+
+import click
+
+import utils
+from models import TopicClassificationTrainingDataset
+from const import OUTPUT_EXPORT_DIR_PATH, DATETIME_SLUG
+
+
+@click.command("topic-classification-training-dataset")
+@utils.needs_pipeline_ready
+def topic_classification_training_dataset():
+    """
+    Exports the topic classification training dataset as a series of CSVs.
+
+    Current setup: text classification fine-tunning
+    https://huggingface.co/docs/autotrain/en/text_classification
+
+    Saved as:
+    - `/data/output/export/topic-classification-training-dataset-{set}-{datetime}.csv`
+    """
+    for set in ["train", "test", "benchmark"]:
+        output_filepath = Path(
+            OUTPUT_EXPORT_DIR_PATH,
+            f"topic-classification-training-dataset-{set}-{DATETIME_SLUG}.csv",
+        )
+
+        with open(output_filepath, "w+") as fd:
+            writer = csv.writer(fd)
+            writer.writerow(["text", "target"])
+
+            for entry in (
+                TopicClassificationTrainingDataset.select()
+                .where(TopicClassificationTrainingDataset.set == set)
+                .iterator()
+            ):
+                pass
