@@ -9,3 +9,4 @@ from .ocr_quality import OCRQuality
 from .scanned_text_simhash import ScannedTextSimhash
 from .language_detection import LanguageDetection
 from .text_analysis import TextAnalysis
+from .topic_classification_training_dataset import TopicClassificationTrainingDataset

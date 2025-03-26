@@ -6,6 +6,9 @@ from .extract_ocr_quality_from_metadata import extract_ocr_quality_from_metadata
 from .extract_page_count import extract_page_count
 from .extract_topic_from_metadata import extract_topic_from_metadata
 from .extract_year_of_publication_from_metadata import extract_year_of_publication_from_metadata
+from .extract_topic_classification_training_dataset import (
+    extract_topic_classification_training_dataset,
+)
 
 from .run_language_detection import run_language_detection
 from .run_ocr_quality_detection import run_ocr_quality_detection
@@ -26,6 +29,7 @@ analyze.add_command(extract_ocr_quality_from_metadata)
 analyze.add_command(extract_page_count)
 analyze.add_command(extract_topic_from_metadata)
 analyze.add_command(extract_year_of_publication_from_metadata)
+analyze.add_command(extract_topic_classification_training_dataset)
 
 analyze.add_command(run_language_detection)
 analyze.add_command(run_ocr_quality_detection)

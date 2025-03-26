@@ -96,6 +96,7 @@ TABLES = {
     "scanned_text_simhash": "ScannedTextSimhash",
     "language_detection": "LanguageDetection",
     "text_analysis": "TextAnalysis",
+    "topic_classification_training_dataset": "TopicClassificationTrainingDataset",
 }
 """ Mapping: Table names to Model class name. """
 
