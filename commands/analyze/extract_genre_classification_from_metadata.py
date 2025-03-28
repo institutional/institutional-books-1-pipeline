@@ -4,7 +4,7 @@ import utils
 from models import BookIO, GenreClassification
 
 
-@click.command("extract-genre-from-metadata")
+@click.command("extract-genre-classifciation-from-metadata")
 @click.option(
     "--overwrite",
     is_flag=True,
@@ -31,7 +31,7 @@ from models import BookIO, GenreClassification
     help="Determines the frequency at which records are pushed to the database. By default: once every 10,000 record creation/update request.",
 )
 @utils.needs_pipeline_ready
-def extract_genre_from_metadata(
+def extract_genre_classification_from_metadata(
     overwrite: bool,
     offset: int | None,
     limit: int | None,

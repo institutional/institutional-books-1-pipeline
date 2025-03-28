@@ -1,10 +1,10 @@
 import click
 
-from .extract_genre_from_metadata import extract_genre_from_metadata
+from .extract_genre_classification_from_metadata import extract_genre_classification_from_metadata
 from .extract_main_language_from_metadata import extract_main_language_from_metadata
 from .extract_ocr_quality_from_metadata import extract_ocr_quality_from_metadata
 from .extract_page_count import extract_page_count
-from .extract_topic_from_metadata import extract_topic_from_metadata
+from .extract_topic_classification_from_metadata import extract_topic_classification_from_metadata
 from .extract_year_of_publication_from_metadata import extract_year_of_publication_from_metadata
 from .extract_topic_classification_training_dataset import (
     extract_topic_classification_training_dataset,
@@ -15,6 +15,7 @@ from .run_ocr_quality_detection import run_ocr_quality_detection
 from .run_simhash import run_simhash
 from .run_text_analysis import run_text_analysis
 from .run_token_count import run_token_count
+from .run_topic_classification import run_topic_classification
 
 
 @click.group("analyze")
@@ -23,11 +24,11 @@ def analyze():
     pass
 
 
-analyze.add_command(extract_genre_from_metadata)
+analyze.add_command(extract_genre_classification_from_metadata)
 analyze.add_command(extract_main_language_from_metadata)
 analyze.add_command(extract_ocr_quality_from_metadata)
 analyze.add_command(extract_page_count)
-analyze.add_command(extract_topic_from_metadata)
+analyze.add_command(extract_topic_classification_from_metadata)
 analyze.add_command(extract_year_of_publication_from_metadata)
 analyze.add_command(extract_topic_classification_training_dataset)
 
@@ -36,3 +37,4 @@ analyze.add_command(run_ocr_quality_detection)
 analyze.add_command(run_simhash)
 analyze.add_command(run_token_count)
 analyze.add_command(run_text_analysis)
+analyze.add_command(run_topic_classification)

@@ -49,13 +49,7 @@ class TopicClassification(peewee.Model):
         index=True,
     )
 
-    detection_average_linear_logprob = peewee.FloatField(
-        null=True,
-        unique=False,
-        index=False,
-    )
-
-    detection_perplexity = peewee.FloatField(
+    detection_confidence = peewee.FloatField(
         null=True,
         unique=False,
         index=False,
