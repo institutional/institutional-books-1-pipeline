@@ -11,7 +11,7 @@ import utils
 from models import BookIO, TopicClassificationTrainingDataset
 from const import OUTPUT_EXPORT_DIR_PATH, DATETIME_SLUG
 
-MODEL_NAME = "instdin/hlbooks-topic-classifier-xlm-roberta-large"
+MODEL_NAME = "instdin/hlbooks-topic-classifier-bert-multilingual-uncased"
 
 
 @click.command("run-topic-classification")
@@ -93,11 +93,11 @@ def run_benchmark():
     row_template = {
         "barcode": "",
         "prompt": "",
-        "model_name": "",
         "target_topic": "",
         "detected_topic": "",
         "confidence": "",
         "match": "",
+        "model_name": "",
     }
 
     total_valid = 0
@@ -116,12 +116,10 @@ def run_benchmark():
     ):
         book = item.book
         row = dict(row_template)
-        row["prompt"] = utils.get_metadata_as_text_prompt(
-            book,
-            skip_topic=True,
-            skip_genre=True,
-        )
+        row["barcode"] = book.barcode
+        row["prompt"] = utils.get_metadata_as_text_prompt(book, skip_topic=True, skip_genre=True)
         row["target_topic"] = item.target_topic
+        row["model_name"] = MODEL_NAME
 
         try:
             result = pipe(row["prompt"])
