@@ -68,13 +68,19 @@ GRIN_TO_S3_TRANCHES_TO_BUCKET_NAMES = {
     "VIEW_METADATA": "gbooks-clearance",
     "MISSING": "gbooks-clearance",
 }
-""" GRIN TO S3: Available tranches and buckets hosting them. """
+""" 
+    GRIN TO S3: Available tranches and buckets hosting them. 
+    Add "raw-" after "gbooks-" to access the buckets with raw data. 
+"""
 
 GRIN_TO_S3_BUCKET_NAMES_TO_TRANCHES = {
     "gbooks-primary": ["VIEW_FULL"],
     "gbooks-clearance": ["VIEW_SNIPPET", "VIEW_NONE", "VIEW_METADATA", "MISSING"],
 }
-""" GRIN TO S3: Available buckets and the tranches they host. """
+""" 
+    GRIN TO S3: Available buckets and the tranches they host. 
+    Add "raw-" after "gbooks-" to access the buckets with raw data. 
+"""
 
 GRIN_TO_S3_BUCKET_VERSION_PREFIX = "v2"
 """ GRIN TO S3: Version of the export to be used. Determines path for files (i.e: v1/jsonl/foo.jsonl) """

@@ -61,6 +61,8 @@ from models import BookIO
 book = book.get(barcode="ABCDEF")
 print(book.jsonl_data) # The full JSONL data is not stored at database level, but retrieved on the fly.
 print(book.csv_data) # ... same goes for data coming from books.csv
+print(book.tarball) # .tar.gz bytes of the underlying archive for the current book (raw data, cached).
+print(book.images) # Raw scans, decompressed from .tar.gz 
 
 # Iterating over the collection
 for book in Book.select().iterator():
