@@ -1,6 +1,7 @@
 from pathlib import Path
 import glob
 import multiprocessing
+import os
 
 import click
 import peewee
@@ -77,3 +78,16 @@ def status():
     _print_section_heading("Resources")
     click.echo(f"Total CPU cores/threads: {multiprocessing.cpu_count()}")
     click.echo(f"Torch Devices: {", ".join(utils.get_torch_devices())}")
+
+    #
+    # Cache
+    #
+    _print_section_heading("Cache status")
+
+    cache_size_max = int(os.getenv("CACHE_MAX_SIZE_IN_GB", 1)) * 1_000_000_000
+    cache_size_current = utils.get_cache().volume()
+
+    click.echo(
+        f"Cache size: "
+        + f"{humanize.naturalsize(cache_size_current)} / {humanize.naturalsize(cache_size_max)}"
+    )

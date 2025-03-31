@@ -6,8 +6,6 @@ from datetime import datetime
 import click
 from slugify import slugify
 from transformers import pipeline
-from datasets import Dataset
-import torch
 
 import utils
 from models import BookIO, TopicClassification, TopicClassificationTrainingDataset
@@ -21,13 +19,13 @@ MODEL_NAME = "instdin/hlbooks-topic-classifier-bert-multilingual-uncased"
     "--benchmark-mode",
     is_flag=True,
     default=False,
-    help="If set, runs in benchmark mode. Analyses 1000 benchmark samples and exports results as CSV",
+    help="If set, runs in benchmark mode.",
 )
 @click.option(
     "--device",
     type=str,
     required=False,
-    help="If set, allows to specify on which device the model should run. See utils.get_torch_devices().",
+    help=f"If set, allows to specify on which device the model should run ({",".join(utils.get_torch_devices())}).",
 )
 @click.option(
     "--offset",
