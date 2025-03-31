@@ -28,6 +28,9 @@ INPUT_CSV_DIR_PATH = Path(INPUT_DIR_PATH, "csv")
 INPUT_MISC_DIR_PATH = Path(INPUT_DIR_PATH, "misc")
 """ Data input directory: misc folder. Can be used for temporary files. """
 
+INPUT_CACHE_DIR_PATH = Path(INPUT_DIR_PATH, "cache")
+""" Data input directory: misc folder. Is used by diskcache. """
+
 OUTPUT_DATABASE_DIR_PATH = Path(OUTPUT_DIR_PATH, "database")
 """ Data output directory: database folder. """
 

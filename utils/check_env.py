@@ -7,6 +7,7 @@ def check_env() -> None:
     """
     for env_var in [
         "DATA_DIR_PATH",
+        "CACHE_MAX_SIZE_IN_GB",
         "GRIN_TO_S3_DATA_ENDPOINT",
         "GRIN_TO_S3_DATA_ACCESS_KEY_ID",
         "GRIN_TO_S3_DATA_SECRET_ACCESS_KEY",

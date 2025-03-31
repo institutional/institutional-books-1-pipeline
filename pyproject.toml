@@ -33,6 +33,7 @@ protobuf = "^5.29.3"
 sentencepiece = "^0.2.0"
 ocroscope = {git = "https://github.com/Pleias/OCRoscope.git"}
 datasets = "^3.5.0"
+diskcache = "^5.6.3"
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"

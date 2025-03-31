@@ -7,6 +7,7 @@ from const import (
     INPUT_JSONL_DIR_PATH,
     INPUT_CSV_DIR_PATH,
     INPUT_MISC_DIR_PATH,
+    INPUT_CACHE_DIR_PATH,
     OUTPUT_DATABASE_DIR_PATH,
     OUTPUT_EXPORT_DIR_PATH,
     OUTPUT_MISC_DIR_PATH,
@@ -26,6 +27,7 @@ def make_dirs() -> None:
     os.makedirs(INPUT_CSV_DIR_PATH, exist_ok=True)
     os.makedirs(INPUT_CSV_DIR_PATH, exist_ok=True)
     os.makedirs(INPUT_MISC_DIR_PATH, exist_ok=True)
+    os.makedirs(INPUT_CACHE_DIR_PATH, exist_ok=True)
 
     os.makedirs(OUTPUT_DATABASE_DIR_PATH, exist_ok=True)
     os.makedirs(OUTPUT_EXPORT_DIR_PATH, exist_ok=True)
