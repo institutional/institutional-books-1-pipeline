@@ -1,5 +1,6 @@
 from pathlib import Path
 import glob
+import multiprocessing
 
 import click
 import peewee
@@ -69,3 +70,10 @@ def status():
     click.echo(f"Total size: {humanize.naturalsize(jsonl_total_size + csv_total_size)}")
     click.echo(f"JSONL: {humanize.naturalsize(jsonl_total_size)}")
     click.echo(f"CSV: {humanize.naturalsize(csv_total_size)}")
+
+    #
+    # Resources
+    #
+    _print_section_heading("Resources")
+    click.echo(f"Total CPU cores/threads: {multiprocessing.cpu_count()}")
+    click.echo(f"Torch Devices: {", ".join(utils.get_torch_devices())}")

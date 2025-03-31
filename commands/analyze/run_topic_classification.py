@@ -6,9 +6,11 @@ from datetime import datetime
 import click
 from slugify import slugify
 from transformers import pipeline
+from datasets import Dataset
+import torch
 
 import utils
-from models import BookIO, TopicClassificationTrainingDataset
+from models import BookIO, TopicClassification, TopicClassificationTrainingDataset
 from const import OUTPUT_EXPORT_DIR_PATH, DATETIME_SLUG
 
 MODEL_NAME = "instdin/hlbooks-topic-classifier-bert-multilingual-uncased"
@@ -22,10 +24,22 @@ MODEL_NAME = "instdin/hlbooks-topic-classifier-bert-multilingual-uncased"
     help="If set, runs in benchmark mode. Analyses 1000 benchmark samples and exports results as CSV",
 )
 @click.option(
-    "--overwrite",
-    is_flag=True,
-    default=False,
-    help="If set, overwrites existing entries.",
+    "--device",
+    type=str,
+    required=False,
+    help="If set, allows to specify on which device the model should run. See utils.get_torch_devices().",
+)
+@click.option(
+    "--offset",
+    type=int,
+    required=False,
+    help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
+)
+@click.option(
+    "--limit",
+    type=int,
+    required=False,
+    help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
 )
 @click.option(
     "--db-write-batch-size",
@@ -37,33 +51,53 @@ MODEL_NAME = "instdin/hlbooks-topic-classifier-bert-multilingual-uncased"
 @utils.needs_pipeline_ready
 def run_topic_classification(
     benchmark_mode: bool,
-    overwrite: bool,
+    device: str | None,
+    offset: int | None,
+    limit: int | None,
     db_write_batch_size: int,
 ):
     """
-    WIP
+    Runs a topic classification model on the collection.
+
+    Notes:
+    - The model was trained on the data filtered by `extract-topic-classification-training-dataset`
+    - This command updates TopicClassification records
+
+    Benchmark mode:
+    - Runs topic classification model on 1000 records set aside for benchmarking purposes.
+    - Results of the benchmark will be saved as:
+      `/data/output/export/topic-classification-benchmark-{model-name}-{datetime}.csv`
     """
     #
     # Dependencies check
     #
     try:
+        # Needs at least 1000 benchmark records
         assert (
             TopicClassificationTrainingDataset.select()
             .where(TopicClassificationTrainingDataset.set == "benchmark")
             .count()
             >= 1000
         )
+
+        # Needs at least 5000 test/validation records
         assert (
             TopicClassificationTrainingDataset.select()
             .where(TopicClassificationTrainingDataset.set == "test")
             .count()
             >= 5000
         )
+
+        # Needs at least 6000 train records
         assert (
             TopicClassificationTrainingDataset.select()
             .where(TopicClassificationTrainingDataset.set == "train")
             .count()
+            >= 6000
         )
+
+        # Existing records for each book in TopicClassification
+        assert BookIO.select().count() == TopicClassification.select().count()
     except Exception:
         click.echo(
             "Topic classification dataset is not ready. "
@@ -75,18 +109,79 @@ def run_topic_classification(
     # Isolated benchmark mode
     #
     if benchmark_mode:
-        run_benchmark()
+        run_benchmark(device)
         exit(0)
 
-    click.echo("Not implemented")
+    #
+    # Full processing mode
+    #
+    run_on_collection(device, offset, limit, db_write_batch_size)
 
 
-def run_benchmark():
-    """ """
+def run_on_collection(
+    device: str | None,
+    offset: int | None,
+    limit: int | None,
+    db_write_batch_size: int,
+):
+    """
+    Run classfication model against collection, update TopicClassification records.
+    """
+    pipe = pipeline("text-classification", model=MODEL_NAME, device=device)
+
+    items_count = TopicClassification.select().offset(offset).limit(limit).count()
+    items_to_update = []
+
+    fields_to_update = [
+        TopicClassification.from_detection,
+        TopicClassification.detection_confidence,
+        TopicClassification.detection_source,
+    ]
+
+    for i, item in enumerate(
+        TopicClassification.select()
+        .offset(offset)
+        .limit(limit)
+        .order_by(TopicClassification.book)
+        .iterator(),
+        start=1,
+    ):
+
+        # Run detection on item
+        try:
+            prompt = utils.get_metadata_as_text_prompt(item.book, skip_topic=True, skip_genre=True)
+            result = pipe(prompt)
+
+            item.from_detection = result[0]["label"]
+            item.detection_confidence = result[0]["score"]
+            item.detection_source = MODEL_NAME
+
+            items_to_update.append(item)
+
+            click.echo(f"🧮 #{item.book.barcode} = {item.from_detection} from {item.from_metadata}")
+        except Exception:
+            click.echo(traceback.format_exc())
+            click.echo(f"⏭️ Could not run classifier on #{item.book.barcode}. Skipping.")
+
+        # Update database records in batches
+        if len(items_to_update) >= db_write_batch_size or i >= items_count:
+            utils.process_db_write_batch(
+                TopicClassification,
+                [],
+                items_to_update,
+                fields_to_update,
+            )
+
+
+def run_benchmark(device: str | None):
+    """
+    Runs the classification model against records set aside for benchmarking purposes.
+    Yields benchmark scores and a summary sheet.
+    """
     click.echo("🥼 Running topic classification task in benchmark mode.")
     click.echo(f"🧪 Target model: {MODEL_NAME}.")
 
-    pipe = pipeline("text-classification", model=MODEL_NAME)
+    pipe = pipeline("text-classification", model=MODEL_NAME, device=device)
 
     rows = []
 

@@ -372,7 +372,7 @@ def index_jsonl_file(jsonl_filepath: Path) -> bool:
                 file_row += 1
             except Exception:
                 click.echo(traceback.format_exc())
-                click.echo(f"{jsonl_filepath}: Error in row #{file_row}. Skipping.")
+                click.echo(f"⏭️ {jsonl_filepath}: Error in row #{file_row}. Skipping.")
                 file_errors += 1
                 file_row += 1
             # In any case: move cursors to next line
