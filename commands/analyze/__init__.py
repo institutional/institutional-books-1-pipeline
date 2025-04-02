@@ -1,11 +1,13 @@
 import click
 
 from .extract_genre_classification_from_metadata import extract_genre_classification_from_metadata
+from .extract_hathitrust_rights_determination import extract_hathitrust_rights_determination
 from .extract_main_language_from_metadata import extract_main_language_from_metadata
 from .extract_ocr_quality_from_metadata import extract_ocr_quality_from_metadata
 from .extract_page_count import extract_page_count
 from .extract_topic_classification_from_metadata import extract_topic_classification_from_metadata
 from .extract_year_of_publication_from_metadata import extract_year_of_publication_from_metadata
+
 from .extract_topic_classification_training_dataset import (
     extract_topic_classification_training_dataset,
 )
@@ -25,6 +27,7 @@ def analyze():
 
 
 analyze.add_command(extract_genre_classification_from_metadata)
+analyze.add_command(extract_hathitrust_rights_determination)
 analyze.add_command(extract_main_language_from_metadata)
 analyze.add_command(extract_ocr_quality_from_metadata)
 analyze.add_command(extract_page_count)

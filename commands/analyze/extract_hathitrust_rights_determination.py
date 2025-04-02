@@ -67,7 +67,7 @@ def extract_hathitrust_rights_determination(
 
         # Create batches of items to process
         for i, book in enumerate(
-            BookIO.select().offset(offset).limit(limit).order_by(BookIO.book).iterator(),
+            BookIO.select().offset(offset).limit(limit).order_by(BookIO.barcode).iterator(),
             start=1,
         ):
             batch.append(book)
@@ -135,42 +135,41 @@ def process_batch(items: list[BookIO], overwrite=False) -> bool:
         try:
             # Pull data
             response = requests.get(url).json()
-            assert response.items
+            assert response["items"]
 
             # Find specific record in list of items
             ht_data = None
 
-            for record in response.items:
-                if record.htid.lower() == htid:
+            for record in response["items"]:
+                if record["htid"].lower() == htid:
                     ht_data = record
                     break
 
             assert ht_data
-        except:
+        except Exception as err:
+            # click.echo(traceback.format_exc())
             pass
-
-        # Skip if no match found
-        if not ht_data:
-            click.echo(f"⏭️ {book.barcode} -> No match. Skipping.")
-            continue
 
         # Prepare record
         item = HathitrustRightsDetermination() if not already_exists else item
-        item.book.barcode = book.barcode
-        item.from_record = ht_data["fromRecord"]
+        item.book = book.barcode
         item.htid = htid
-        item.rights_code = ht_data["rightsCode"]
-        item.last_update_year = ht_data["lastUpdate"][0:4]
-        item.last_update_month = ht_data["lastUpdate"][4:6]
-        item.last_update_day = ht_data["lastUpdate"][6:8]
-        item.enumcron = ht_data["enumcron"]
-        item.us_rights_string = ht_data["usRightsString"]
         item.retrieved_date = datetime.now()
 
-        click.echo(f"{book.barcode} -> {item.rights_code}")
+        if ht_data:
+            item.from_record = ht_data["fromRecord"]
+            item.rights_code = ht_data["rightsCode"]
+            item.last_update_year = ht_data["lastUpdate"][0:4]
+            item.last_update_month = ht_data["lastUpdate"][4:6]
+            item.last_update_day = ht_data["lastUpdate"][6:8]
+            item.enumcron = ht_data["enumcron"] if ht_data["enumcron"] else None
+            item.us_rights_string = ht_data["usRightsString"]
+            click.echo(f"🧮 #{book.barcode} -> {item.rights_code}")
+        else:
+            click.echo(f"⏭️ #{book.barcode} -> No match.")
 
-        if already_exists:
-            entries_to_update.append(item)
+        if not already_exists:
+            entries_to_create.append(item)
         else:
             entries_to_update.append(item)
 
