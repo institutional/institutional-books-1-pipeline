@@ -1,6 +1,5 @@
 import csv
 from pathlib import Path
-import random
 
 import click
 

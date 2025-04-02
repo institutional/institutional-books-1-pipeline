@@ -1,5 +1,4 @@
 import os
-import re
 import csv
 import json
 import gzip
@@ -141,6 +140,10 @@ def build(
             exit(1)
 
     #
+    # Download latest Hathifiles (rights determination)
+    #
+
+    #
     # Index jsonl files (parallelized)
     #
     click.echo("📋 Indexing content from individual JSONL files ...")
@@ -185,6 +188,10 @@ def build(
                 click.echo("Could not index contents of CSV file. Interrupting.")
                 executor.shutdown(wait=False, cancel_futures=True)
                 exit(1)
+
+    #
+    # Index Hathifiles
+    #
 
     #
     # Mark pipeline as ready
