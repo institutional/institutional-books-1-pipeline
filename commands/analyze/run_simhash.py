@@ -33,13 +33,13 @@ from const import DEFAULT_SIMHASH_SHINGLE_WIDTH
     "--offset",
     type=int,
     required=False,
-    help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
+    help="If set, allows for processing a subset of the collection (sorted by BookIO.barcode).",
 )
 @click.option(
     "--limit",
     type=int,
     required=False,
-    help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
+    help="If set, allows for processing a subset of the collection (sorted by BookIO.barcode).",
 )
 @click.option(
     "--max-workers",

@@ -27,13 +27,13 @@ TOKENIZER_NAME = "o200k_base"
     "--offset",
     type=int,
     required=False,
-    help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
+    help="If set, allows for processing a subset of the collection (sorted by BookIO.barcode).",
 )
 @click.option(
     "--limit",
     type=int,
     required=False,
-    help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
+    help="If set, allows for processing a subset of the collection (sorted by BookIO.barcode).",
 )
 @click.option(
     "--chunk-size",
@@ -69,7 +69,7 @@ def run_language_detection(
     - Requires the `main_lanaguage`` table to be populated. See `analyze extract-main-language-from-metadata`
     """
     #
-    # Dependency: check that `main_language` was populated
+    # Data dependency checks
     #
     try:
         assert BookIO.select().count() == MainLanguage.select().count()

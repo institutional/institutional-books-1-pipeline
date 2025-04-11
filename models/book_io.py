@@ -19,6 +19,10 @@ from const import (
 
 @dataclass(repr=True)
 class BookRawData:
+    """
+    Holds data parsed from a .tar.gz file containg a book's raw data (scans, OCR metadata ...)
+    """
+
     images: list[bytes]
     """ Raw bytes for all the images available for the selected book, indexed by page order. (.jp2 or .tif files) """
 
@@ -45,6 +49,7 @@ class BookIO(peewee.Model):
         super(BookIO, self).__init__(*args, **kwargs)
         self.__jsonl_data = None
         self.__csv_data = None
+        self.__raw_data = None
 
     __book_csv_headers = None
     """ Class-level cache for the headers of "books.csv"."""
@@ -164,7 +169,7 @@ class BookIO(peewee.Model):
     @property
     def tarball(self) -> bytes:
         """
-        Gets the full .tar.gz containg raw data for the current book.
+        Retrieves the tarball containg raw data for the current book.
         Tries to load it from cache if available.
         """
         book_tgz_name = f"{self.barcode}.tar.gz"
@@ -211,6 +216,10 @@ class BookIO(peewee.Model):
         """
         Parses the tarball containing raw data for the current book and returns a BookRawData object.
         """
+        # If available, return copy already present in memory
+        if self.__raw_data:
+            return self.raw_data
+
         book_tgz_bytes = self.tarball
         images = []
         hocr = []
@@ -253,10 +262,12 @@ class BookIO(peewee.Model):
         assert len(md5) == (len(text) + len(hocr) + len(images)) + 1
         assert gxml
 
-        return BookRawData(
+        self.__raw_data = BookRawData(
             images=images,
             hocr=hocr,
             text=text,
             gxml=gxml,
             md5=md5,
         )
+
+        return self.__raw_data

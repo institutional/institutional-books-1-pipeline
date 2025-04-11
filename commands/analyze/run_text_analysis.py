@@ -28,13 +28,13 @@ TOKENIZER_NAME = "o200k_base"
     "--offset",
     type=int,
     required=False,
-    help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
+    help="If set, allows for processing a subset of the collection (sorted by BookIO.barcode).",
 )
 @click.option(
     "--limit",
     type=int,
     required=False,
-    help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
+    help="If set, allows for processing a subset of the collection (sorted by BookIO.barcode).",
 )
 @click.option(
     "--max-workers",
@@ -60,8 +60,10 @@ def run_text_analysis(
     - Skips entries that were already analyzed, unless instructed otherwise
     """
     #
-    # Dependency: check that `main_language` was populated language detection data
+    # Data dependency checks
     #
+
+    # Language detection data
     try:
         assert BookIO.select().count() == MainLanguage.select().count()
         assert (

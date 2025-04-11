@@ -8,3 +8,4 @@ TODO.txt
 *.csv
 *.csv.tar.gz
 *.txt
+tmp/

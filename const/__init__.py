@@ -107,6 +107,7 @@ TABLES = {
     "text_analysis": "TextAnalysis",
     "topic_classification_training_dataset": "TopicClassificationTrainingDataset",
     "hathitrust_rights_determination": "HathitrustRightsDetermination",
+    "layout_aware_text": "LayoutAwareText",
 }
 """ Mapping: Table names to Model class name. """
 

@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import utils
 import commands.setup
 import commands.analyze
+import commands.process
 import commands.export
 
 load_dotenv()
@@ -21,7 +22,9 @@ def cli():
 
 cli.add_command(commands.setup.setup)
 cli.add_command(commands.analyze.analyze)
+cli.add_command(commands.process.process)
 cli.add_command(commands.export.export)
+
 
 if __name__ == "__main__":
     cli()

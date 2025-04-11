@@ -14,13 +14,13 @@ from models import BookIO, OCRQuality
     "--offset",
     type=int,
     required=False,
-    help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
+    help="If set, allows for processing a subset of the collection (sorted by BookIO.barcode).",
 )
 @click.option(
     "--limit",
     type=int,
     required=False,
-    help="If set, allows for processing a subset of the whole issues batch (sorted by BookIO.barcode).",
+    help="If set, allows for processing a subset of the collection (sorted by BookIO.barcode).",
 )
 @click.option(
     "--max-workers",
@@ -43,7 +43,7 @@ def run_ocr_quality_detection(
     - Requires the `ocr_quality` table to be populated, see `analyze extract-ocr-quality-from-metadata` (for comparison with metadata info)
     """
     #
-    # Dependency: check that `ocr_quality` was populated with metadata
+    # Data dependency checks
     #
     try:
         assert BookIO.select().count() == OCRQuality.select().count()
