@@ -17,6 +17,24 @@ from const import (
 )
 
 
+@dataclass(repr=True)
+class BookRawData:
+    images: list[bytes]
+    """ Raw bytes for all the images available for the selected book, indexed by page order. (.jp2 or .tif files) """
+
+    hocr: list[str]
+    """ Strings for all hOCR files available for the selected book, indexed by page order. (hOCR as .html files)"""
+
+    text: list[str]
+    """ Strings for all raw text files available for the selected book, indexed by page order. (.txt files)"""
+
+    gxml: str
+    """ String for the main GXML file available for teh selected book. (.xml file) """
+
+    md5: list[tuple[str, str]]
+    """ Data parsed from checksum.md5. """
+
+
 class BookIO(peewee.Model):
     """
     `book_io` table: Organizes information about each JSONL entry (individual books).
@@ -189,18 +207,56 @@ class BookIO(peewee.Model):
         return book_tgz_bytes
 
     @property
-    def images(self) -> list[bytes]:
+    def raw_data(self) -> BookRawData:
         """
-        Extracts and returns raw bytes for all the images available for the current book.
+        Parses the tarball containing raw data for the current book and returns a BookRawData object.
         """
         book_tgz_bytes = self.tarball
         images = []
+        hocr = []
+        text = []
+        gxml = []
+        md5 = []
 
         with tarfile.open(fileobj=BytesIO(book_tgz_bytes), mode="r:gz") as tar:
-            for member in tar.getmembers():
-                if ".tif" not in member.name and ".jp2" not in member.name:
-                    continue
+            sorted_members = sorted(tar.getmembers(), key=lambda m: m.name)
 
-                images.append(tar.extractfile(member.name).read())
+            for member in sorted_members:
 
-        return images
+                if ".tif" in member.name or ".jp2" in member.name:
+                    data = tar.extractfile(member.name).read()
+                    images.append(data)
+
+                if ".html" in member.name:
+                    data = tar.extractfile(member.name).read().decode("utf-8")
+                    hocr.append(data)
+
+                if ".txt" in member.name:
+                    data = tar.extractfile(member.name).read().decode("utf-8")
+                    text.append(data)
+
+                if ".xml" in member.name:
+                    gxml = tar.extractfile(member.name).read().decode("utf-8")
+
+                # Example of md5 line:
+                # 802d3e8fbb3d659fcf1fa2d298bd80bc  00000004.tif
+                if ".md5" in member.name:
+                    data = tar.extractfile(member.name).read().decode("utf-8")
+
+                    for line in data.split("\n"):
+                        if not line:
+                            continue
+
+                        md5.append(tuple(line.split("  ")))
+
+        assert len(text) == len(hocr) == len(images)
+        assert len(md5) == (len(text) + len(hocr) + len(images)) + 1
+        assert gxml
+
+        return BookRawData(
+            images=images,
+            hocr=hocr,
+            text=text,
+            gxml=gxml,
+            md5=md5,
+        )
