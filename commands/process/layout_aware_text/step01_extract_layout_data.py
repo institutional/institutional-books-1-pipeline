@@ -229,13 +229,14 @@ def process_book(book: BookIO, overwrite: bool) -> bool:
     #
     entry = LayoutData()
     entry.book = book.barcode
-    entry.page_metadata = page_metadata_by_page
-    entry.words = words_by_page
-    entry.separators = separators_by_page
+    entry.page_metadata_by_page = page_metadata_by_page
+    entry.words_by_page = words_by_page
+    entry.separators_by_page = separators_by_page
     entry.save(force_insert=True)
 
     processing_end = datetime.now()
     click.echo(f"⏱️ #{book.barcode} - Processed in {processing_end - processing_start}")
+    return True
 
 
 def parse_hocr(raw_hocr: str) -> tuple[PageMetadata, list[OCRChunk]]:
@@ -244,7 +245,7 @@ def parse_hocr(raw_hocr: str) -> tuple[PageMetadata, list[OCRChunk]]:
 
     Note:
     - Documents were OCR'd by Google at 50% of the page's original size
-    - All dimensions and bounding boxes are further reduced by 50% for faster processing
+    - All dimensions and bounding boxes are further reduced for faster processing (// 4)
     """
     parsed_hocr = BeautifulSoup(raw_hocr, features="html.parser")
     page_metadata = PageMetadata()
@@ -265,8 +266,8 @@ def parse_hocr(raw_hocr: str) -> tuple[PageMetadata, list[OCRChunk]]:
         if prop.startswith("ocrp_lang"):
             page_metadata.language = prop.split(" ")[-1]
 
-    page_metadata.width = int(page_metadata.width) // 3
-    page_metadata.height = int(page_metadata.height) // 3
+    page_metadata.width = int(page_metadata.width) // 4
+    page_metadata.height = int(page_metadata.height) // 4
     page_metadata.number = int(page_metadata.number)
 
     #
@@ -298,7 +299,7 @@ def parse_hocr(raw_hocr: str) -> tuple[PageMetadata, list[OCRChunk]]:
         for attr in node.get("title").split(";"):
             if attr.startswith("bbox"):
                 bbox = attr.split(" ")[1:]
-                word.x_min, word.y_min, word.x_max, word.y_max = [int(val) // 3 for val in bbox]
+                word.x_min, word.y_min, word.x_max, word.y_max = [int(val) // 4 for val in bbox]
 
             if attr.startswith("x_wconf"):
                 word.confidence = int(attr.split(" ")[1])
@@ -330,13 +331,13 @@ def detect_layout_separators(
     separators = []
 
     # Open, resize and convert image
-    np_image = cv2.imdecode(
+    image_np = cv2.imdecode(
         np.frombuffer(image_bytes, np.uint8),
         cv2.IMREAD_GRAYSCALE,
     )
 
-    np_image = cv2.resize(
-        np_image,
+    image_np = cv2.resize(
+        image_np,
         (page_metadata.width, page_metadata.height),
         interpolation=cv2.INTER_AREA,
     )
