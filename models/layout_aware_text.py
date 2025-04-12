@@ -29,17 +29,22 @@ class LayoutAwareText(peewee.Model):
     )
 
     @property
-    def text_by_page_gzip(self):
+    def text_by_page(self) -> list[str]:
         """
-        Handles automatic decompression and decoding for text_by_page_gzip
+        Handles automatic decompression and decoding for _text_by_page_gzip
         """
         return orjson.loads(gzip.decompress(self._text_by_page_gzip))
 
-    @text_by_page_gzip.setter
-    def text_by_page_gzip(self, value: list[str]):
+    @text_by_page.setter
+    def text_by_page(self, text_by_page: list[str]):
         """
-        Handles automatic encoding and compression for text_by_page_gzip
+        Handles automatic encoding and compression for _text_by_page_gzip
         """
-        text_by_page = orjson.dumps(value)
-        self._text_by_page_gzip = gzip.compress(text_by_page)
+        assert isinstance(text_by_page, list)
+
+        for page in text_by_page:
+            assert isinstance(page, str)
+
+        serialized = orjson.dumps(text_by_page)
+        self._text_by_page_gzip = gzip.compress(serialized)
         return self._text_by_page_gzip

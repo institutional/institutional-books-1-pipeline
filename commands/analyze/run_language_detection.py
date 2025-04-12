@@ -66,7 +66,7 @@ def run_language_detection(
 
     Notes:
     - Skips entries that were already analyzed, unless instructed otherwise
-    - Requires the `main_lanaguage`` table to be populated. See `analyze extract-main-language-from-metadata`
+    - Requires the `main_lanaguage` table to be populated. See `analyze extract-main-language-from-metadata`
     """
     #
     # Data dependency checks
@@ -74,10 +74,7 @@ def run_language_detection(
     try:
         assert BookIO.select().count() == MainLanguage.select().count()
     except:
-        click.echo(
-            "This command needs metadata-based language information. "
-            + "See `extract-main-language-from-metadata`."
-        )
+        click.echo("This command needs metadata-based language information.")
         exit(1)
 
     #

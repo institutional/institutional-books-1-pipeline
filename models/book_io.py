@@ -228,9 +228,9 @@ class BookIO(peewee.Model):
         md5 = []
 
         with tarfile.open(fileobj=BytesIO(book_tgz_bytes), mode="r:gz") as tar:
-            sorted_members = sorted(tar.getmembers(), key=lambda m: m.name)
-
-            for member in sorted_members:
+            # sorted_members = sorted(tar.getmembers(), key=lambda m: m.name)
+            # [!] This assumes members are listed by alphabetical order
+            for member in tar.getmembers():
 
                 if ".tif" in member.name or ".jp2" in member.name:
                     data = tar.extractfile(member.name).read()

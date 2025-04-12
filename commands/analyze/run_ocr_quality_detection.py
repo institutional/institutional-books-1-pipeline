@@ -48,10 +48,7 @@ def run_ocr_quality_detection(
     try:
         assert BookIO.select().count() == OCRQuality.select().count()
     except:
-        click.echo(
-            "This command needs metadata-based OCR quality data. "
-            + "See `extract-ocr-quality-from-metadata`."
-        )
+        click.echo("This command needs metadata-based OCR quality data.")
         exit(1)
 
     #

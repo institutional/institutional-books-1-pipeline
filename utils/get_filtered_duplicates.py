@@ -30,9 +30,10 @@ def get_filtered_duplicates(max_workers: int = multiprocessing.cpu_count()) -> d
         raise Exception("Text analysis data is not available.")
 
     try:
-        assert (
+        count = (
             MainLanguage.select().where(MainLanguage.from_detection_iso693_3.is_null(False)).count()
         )
+        assert count
     except:
         raise Exception("Language detection data is not available.")
 

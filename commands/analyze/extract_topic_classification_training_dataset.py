@@ -258,10 +258,7 @@ def extract_topic_classification_training_dataset():
     try:
         assert BookIO.select().count() == TopicClassification.select().count()
     except:
-        click.echo(
-            "This command needs metadata-based topic classification data. "
-            + "See `extract-topic-from-metadata`."
-        )
+        click.echo("This command needs metadata-based topic classification data.")
         exit(1)
 
     # Delete existing set

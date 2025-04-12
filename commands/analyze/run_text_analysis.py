@@ -66,11 +66,13 @@ def run_text_analysis(
     # Language detection data
     try:
         assert BookIO.select().count() == MainLanguage.select().count()
-        assert (
+
+        count = (
             MainLanguage.select().where(MainLanguage.from_detection_iso693_3.is_null(False)).count()
         )
+        assert count
     except:
-        click.echo("This command needs language detection data. See `run-language-detection`.")
+        click.echo("This command needs language detection data.")
         exit(1)
 
     with ProcessPoolExecutor(max_workers=max_workers) as executor:

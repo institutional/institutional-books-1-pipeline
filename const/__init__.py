@@ -108,6 +108,7 @@ TABLES = {
     "topic_classification_training_dataset": "TopicClassificationTrainingDataset",
     "hathitrust_rights_determination": "HathitrustRightsDetermination",
     "layout_aware_text": "LayoutAwareText",
+    "layout_data": "LayoutData",
 }
 """ Mapping: Table names to Model class name. """
 

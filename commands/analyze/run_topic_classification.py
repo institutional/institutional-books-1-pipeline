@@ -97,10 +97,7 @@ def run_topic_classification(
         # Existing records for each book in TopicClassification
         assert BookIO.select().count() == TopicClassification.select().count()
     except Exception:
-        click.echo(
-            "Topic classification dataset is not ready. "
-            + "See `extract-topic-classification-training-dataset`."
-        )
+        click.echo("Topic classification dataset is not ready.")
         exit(1)
 
     #
