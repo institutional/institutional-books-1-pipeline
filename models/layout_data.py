@@ -68,24 +68,24 @@ class LayoutData(peewee.Model):
         primary_key=True,
     )
 
-    _page_metadata_gzip = peewee.BlobField(
+    _page_metadata_by_page_gzip = peewee.BlobField(
         null=True,
-        column_name="page_metadata_gzip",
+        column_name="page_metadata_by_page_gzip",
     )
 
-    _words_gzip = peewee.BlobField(
+    _words_by_page_gzip = peewee.BlobField(
         null=True,
-        column_name="words_gzip",
+        column_name="words_by_page_gzip",
     )
 
-    _separators_gzip = peewee.BlobField(
+    _separators_by_page_gzip = peewee.BlobField(
         null=True,
-        column_name="separators_gzip",
+        column_name="separators_by_page_gzip",
     )
 
-    _spans_gzip = peewee.BlobField(
+    _spans_by_page_gzip = peewee.BlobField(
         null=True,
-        column_name="spans_gzip",
+        column_name="spans_by_page_gzip",
     )
 
     spans_sorted = peewee.BooleanField(
@@ -93,22 +93,22 @@ class LayoutData(peewee.Model):
         index=True,
     )
 
-    _blocks_gzip = peewee.BlobField(
+    _blocks_by_page_gzip = peewee.BlobField(
         null=True,
-        column_name="blocks_gzip",
+        column_name="blocks_by_page_gzip",
     )
 
     @property
-    def page_metadata(self) -> list[PageMetadata]:
+    def page_metadata_by_page(self) -> list[PageMetadata]:
         """
-        Handles automatic decompression and decoding for _page_metadata_gzip
+        Handles automatic decompression and decoding for the underlying property.
         """
-        return pickle.loads(gzip.decompress(self._text_by_page_gzip))
+        return pickle.loads(gzip.decompress(self._page_metadata_by_page_gzip))
 
-    @page_metadata.setter
-    def page_metadata(self, pages: list[PageMetadata]):
+    @page_metadata_by_page.setter
+    def page_metadata_by_page(self, pages: list[PageMetadata]):
         """
-        Handles automatic encoding and compression for _page_metadata_gzip
+        Handles automatic encoding and compression for the underlying property.
         """
         assert isinstance(pages, list)
 
@@ -116,20 +116,20 @@ class LayoutData(peewee.Model):
             assert isinstance(page, PageMetadata)
 
         serialized = pickle.dumps(pages, protocol=5)
-        self._page_metadata_gzip = gzip.compress(serialized)
-        return self._page_metadata_gzip
+        self._page_metadata_by_page_gzip = gzip.compress(serialized)
+        return self._page_metadata_by_page_gzip
 
     @property
-    def words(self) -> list[list[OCRChunk]]:
+    def words_by_page(self) -> list[list[OCRChunk]]:
         """
-        Handles automatic decompression and decoding for _words_gzip
+        Handles automatic decompression and decoding for the underlying property.
         """
-        return pickle.loads(gzip.decompress(self._words_gzip))
+        return pickle.loads(gzip.decompress(self._words_by_page_gzip))
 
-    @words.setter
-    def words(self, pages: list[list[OCRChunk]]):
+    @words_by_page.setter
+    def words_by_page(self, pages: list[list[OCRChunk]]):
         """
-        Handles automatic encoding and compression for _words_gzip
+        Handles automatic encoding and compression for the underlying property.
         """
         assert isinstance(pages, list)
 
@@ -141,20 +141,20 @@ class LayoutData(peewee.Model):
                 assert word.type == OCRChunkType.WORD
 
         serialized = pickle.dumps(pages, protocol=5)
-        self._words_gzip = gzip.compress(serialized)
-        return self._words_gzip
+        self._words_by_page_gzip = gzip.compress(serialized)
+        return self._words_by_page_gzip
 
     @property
-    def separators(self) -> list[list[LayoutSeparator]]:
+    def separators_by_page(self) -> list[list[LayoutSeparator]]:
         """
-        Handles automatic decompression and decoding for _separators_gzip
+        Handles automatic decompression and decoding for the underlying property.
         """
-        return pickle.loads(gzip.decompress(self._separators_gzip))
+        return pickle.loads(gzip.decompress(self._separators_by_page_gzip))
 
-    @separators.setter
-    def separators(self, pages: list[list[LayoutSeparator]]):
+    @separators_by_page.setter
+    def separators_by_page(self, pages: list[list[LayoutSeparator]]):
         """
-        Handles automatic encoding and compression for _separators_gzip
+        Handles automatic encoding and compression for the underlying property.
         """
         assert isinstance(pages, list)
 
@@ -165,20 +165,20 @@ class LayoutData(peewee.Model):
                 assert isinstance(separator, LayoutSeparator)
 
         serialized = pickle.dumps(pages, protocol=5)
-        self._separators_gzip = gzip.compress(serialized)
-        return self._separators_gzip
+        self._separators_by_page_gzip = gzip.compress(serialized)
+        return self._separators_by_page_gzip
 
     @property
-    def spans(self) -> list[list[OCRChunk]]:
+    def spans_by_page(self) -> list[list[OCRChunk]]:
         """
-        Handles automatic decompression and decoding for _spans_gzip
+        Handles automatic decompression and decoding for the underlying property.
         """
-        return pickle.loads(gzip.decompress(self._spans_gzip))
+        return pickle.loads(gzip.decompress(self._spans_by_page_gzip))
 
-    @spans.setter
-    def spans(self, pages: list[list[OCRChunk]]):
+    @spans_by_page.setter
+    def spans_by_page(self, pages: list[list[OCRChunk]]):
         """
-        Handles automatic encoding and compression for _spans_gzip
+        Handles automatic encoding and compression for the underlying property.
         """
         assert isinstance(pages, list)
 
@@ -190,20 +190,20 @@ class LayoutData(peewee.Model):
                 assert span.type == OCRChunkType.SPAN
 
         serialized = pickle.dumps(pages, protocol=5)
-        self._spans_gzip = gzip.compress(serialized)
-        return self._spans_gzip
+        self._spans_by_page_gzip = gzip.compress(serialized)
+        return self._spans_by_page_gzip
 
     @property
-    def blocks(self) -> list[list[OCRChunk]]:
+    def blocks_by_page(self) -> list[list[OCRChunk]]:
         """
-        Handles automatic decompression and decoding for _blocks_gzip
+        Handles automatic decompression and decoding for the underlying property.
         """
-        return pickle.loads(gzip.decompress(self._blocks_gzip))
+        return pickle.loads(gzip.decompress(self._blocks_by_page_gzip))
 
-    @spans.setter
-    def blocks(self, pages: list[list[OCRChunk]]):
+    @blocks_by_page.setter
+    def blocks_by_page(self, pages: list[list[OCRChunk]]):
         """
-        Handles automatic encoding and compression for _spans_gzip
+        Handles automatic encoding and compression for the underlying property.
         """
         assert isinstance(pages, list)
 
@@ -215,5 +215,5 @@ class LayoutData(peewee.Model):
                 assert block.type == OCRChunkType.BLOCK
 
         serialized = pickle.dumps(pages, protocol=5)
-        self._blocks_gzip = gzip.compress(serialized)
-        return self._blocks_gzip
+        self._blocks_by_page_gzip = gzip.compress(serialized)
+        return self._blocks_by_page_gzip
