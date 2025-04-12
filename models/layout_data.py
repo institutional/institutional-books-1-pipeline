@@ -34,7 +34,6 @@ class OCRChunk:
     text: str = ""
     confidence: int = 0
     type: OCRChunkType = OCRChunkType.UNKNOWN
-    font_size: int = -1
 
 
 class LayoutSeparatorType(Enum):

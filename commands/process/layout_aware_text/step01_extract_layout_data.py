@@ -39,7 +39,7 @@ MIN_OCR_CONFIDENCE_SCORE = 70
 LAYOUT_SEPARATOR_LINE_THICKNESS_TOLERANCE = 10
 """ Thickness tolerance for line detection, in pixels. """
 
-LAYOUT_SEPARATOR_LINE_LENGTH_RATIO = 0.4
+LAYOUT_SEPARATOR_LINE_LENGTH_RATIO = 0.33
 """ Length, in % of the document's width or height, a detected line needs to be in order to be considered a layout separator. """
 
 
@@ -265,8 +265,8 @@ def parse_hocr(raw_hocr: str) -> tuple[PageMetadata, list[OCRChunk]]:
         if prop.startswith("ocrp_lang"):
             page_metadata.language = prop.split(" ")[-1]
 
-    page_metadata.width = int(page_metadata.width) // 2
-    page_metadata.height = int(page_metadata.height) // 2
+    page_metadata.width = int(page_metadata.width) // 3
+    page_metadata.height = int(page_metadata.height) // 3
     page_metadata.number = int(page_metadata.number)
 
     #
@@ -298,7 +298,7 @@ def parse_hocr(raw_hocr: str) -> tuple[PageMetadata, list[OCRChunk]]:
         for attr in node.get("title").split(";"):
             if attr.startswith("bbox"):
                 bbox = attr.split(" ")[1:]
-                word.x_min, word.y_min, word.x_max, word.y_max = [int(val) // 2 for val in bbox]
+                word.x_min, word.y_min, word.x_max, word.y_max = [int(val) // 3 for val in bbox]
 
             if attr.startswith("x_wconf"):
                 word.confidence = int(attr.split(" ")[1])
@@ -321,7 +321,6 @@ def detect_layout_separators(
     """
     Detects horizontal and vertical layout separators in raw scans.
     """
-    image = None
     image_np = None
     image_binary = None
 
@@ -331,15 +330,20 @@ def detect_layout_separators(
     separators = []
 
     # Open, resize and convert image
-    image = Image.open(BytesIO(image_bytes))
-    image = image.convert("L")
-    image = image.resize((page_metadata.width, page_metadata.height))
+    np_image = cv2.imdecode(
+        np.frombuffer(image_bytes, np.uint8),
+        cv2.IMREAD_GRAYSCALE,
+    )
 
-    image_np = np.array(image)
+    np_image = cv2.resize(
+        np_image,
+        (page_metadata.width, page_metadata.height),
+        interpolation=cv2.INTER_AREA,
+    )
 
-    # Set minimun line length as 50% of respective dimension
-    h_min_line_length = int(image_np.shape[1] * line_length_ratio)
-    v_min_line_length = int(image_np.shape[0] * line_length_ratio)
+    # Set minimun line length as X% of respective dimension
+    h_min_line_length = int(page_metadata.width * line_length_ratio)
+    v_min_line_length = int(page_metadata.height * line_length_ratio)
 
     # Create binary image
     image_binary = cv2.adaptiveThreshold(
