@@ -40,7 +40,6 @@ def run_ocr_quality_detection(
 
     Notes:
     - Skips entries that were already analyzed, unless instructed otherwise
-    - Requires the `ocr_quality` table to be populated, see `analyze extract-ocr-quality-from-metadata` (for comparison with metadata info)
     """
     #
     # Data dependency checks

@@ -77,11 +77,14 @@ def step01_extract_layout_data(
     max_workers: int,
 ):
     """
-    TODO
+    Layout-aware text processing, step 01:
+    Extracts layout data from Google Books hOCR and raw scans.
+    Focuses on capturing word-level bboxes and detecting layout separators (lines separating columns and sometimes sections).
 
     Notes:
-    - Skips entries that were already analyzed, unless instructed otherwise
-    - Requires the `main_lanaguage` table to be populated. See `analyze extract-main-language-from-metadata`
+    - LayoutData entries are stored on disc under `OUTPUT_MISC_DIR_PATH`.
+    - Skips entries that were already processed, unless instructed otherwise.
+    - All dimensions / bboxes are shrunk by 4 for easier and faster processing.
     """
     #
     # Data dependency checks
@@ -124,32 +127,14 @@ def step01_extract_layout_data(
                 future.result()
             except Exception:
                 click.echo(traceback.format_exc())
-                click.echo("Could not generate layout aware text. Interrupting.")
+                click.echo("Could not extract layout data. Interrupting.")
                 executor.shutdown(wait=False, cancel_futures=True)
                 exit(1)
-
-    #
-    # Create empty records for entries that were skipped
-    #
-    entries_to_create = []
-
-    for book in BookIO.select().offset(offset).limit(limit).order_by(BookIO.barcode).iterator():
-        if book.layoutdata_set:
-            continue
-
-        entries_to_create.append(LayoutData(book=book.barcode))
-
-    utils.process_db_write_batch(
-        LayoutData,
-        entries_to_create,
-        [],
-        [],
-    )
 
 
 def process_book(book: BookIO, overwrite: bool) -> bool:
     """
-    TODO
+    Runs layout data extraction on all the pages of a given book and saves results to disk.
     """
     processing_start = datetime.now()
     processing_end = None
@@ -157,7 +142,7 @@ def process_book(book: BookIO, overwrite: bool) -> bool:
     target_languages = TARGET_LANGUAGES.strip().replace("\n", "").split(",")
 
     already_exists = False
-    entry = None
+    entry: LayoutData = None
     should_skip = False
 
     book_raw_data = None
@@ -170,18 +155,13 @@ def process_book(book: BookIO, overwrite: bool) -> bool:
     # Check if record already exists
     #
     try:
-        entry = LayoutData.get(book=book.barcode)
-        assert entry
-        already_exists = True
+        already_exists = LayoutData.exists(barcode=book.barcode)
 
         if already_exists and not overwrite:
             click.echo(f"⏭️ #{book.barcode} already processed. Skipping")
+            return False
     except:
         pass
-
-    # In overwrite mode: delete existing record
-    if already_exists:
-        LayoutData.delete().where(LayoutData.book == book.barcode).execute()
 
     #
     # Skip processing book if:
@@ -243,11 +223,11 @@ def process_book(book: BookIO, overwrite: bool) -> bool:
     # Step 3 - Save
     #
     entry = LayoutData()
-    entry.book = book.barcode
+    entry.barcode = book.barcode
     entry.page_metadata_by_page = page_metadata_by_page
     entry.words_by_page = words_by_page
     entry.separators_by_page = separators_by_page
-    entry.save(force_insert=True)
+    entry.save()
 
     processing_end = datetime.now()
     click.echo(f"⏱️ #{book.barcode} - Processed in {processing_end - processing_start}")
@@ -337,7 +317,7 @@ def detect_layout_separators(
     line_length_ratio: float = LAYOUT_SEPARATOR_LINE_LENGTH_RATIO,
 ) -> list[LayoutSeparator]:
     """
-    Detects horizontal and vertical layout separators in raw scans.
+    Tries to detect horizontal and vertical layout separators in a raw scan.
     """
     image_np = None
     image_binary = None

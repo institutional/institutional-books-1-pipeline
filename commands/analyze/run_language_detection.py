@@ -66,7 +66,6 @@ def run_language_detection(
 
     Notes:
     - Skips entries that were already analyzed, unless instructed otherwise
-    - Requires the `main_lanaguage` table to be populated. See `analyze extract-main-language-from-metadata`
     """
     #
     # Data dependency checks
@@ -103,7 +102,7 @@ def process_book(
     overwrite: bool = False,
 ) -> bool:
     """
-    Runs text-level language detection on a single books.
+    Runs text-level language detection on a single book.
     - Splits text in chunks roughly identified as groups of sentences of max length X
     - Runs detection on each chunk, collects main language and token count
     - Summarize language distribution at book level
