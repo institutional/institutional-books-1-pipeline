@@ -2,9 +2,6 @@ import multiprocessing
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import traceback
 from datetime import datetime
-from dataclasses import dataclass
-from enum import Enum
-from io import BytesIO
 
 import click
 from bs4 import BeautifulSoup, NavigableString, Tag
@@ -41,6 +38,9 @@ LAYOUT_SEPARATOR_LINE_THICKNESS_TOLERANCE = 10
 
 LAYOUT_SEPARATOR_LINE_LENGTH_RATIO = 0.33
 """ Length, in % of the document's width or height, a detected line needs to be in order to be considered a layout separator. """
+
+BBOX_SCALING_FACTOR = 4
+""" Reduces the size of all bboxes for faster processing. """
 
 
 @click.command("step01-extract-layout-data")
@@ -128,6 +128,24 @@ def step01_extract_layout_data(
                 executor.shutdown(wait=False, cancel_futures=True)
                 exit(1)
 
+    #
+    # Create empty records for entries that were skipped
+    #
+    entries_to_create = []
+
+    for book in BookIO.select().offset(offset).limit(limit).order_by(BookIO.barcode).iterator():
+        if book.layoutdata_set:
+            continue
+
+        entries_to_create.append(LayoutData(book=book.barcode))
+
+    utils.process_db_write_batch(
+        LayoutData,
+        entries_to_create,
+        [],
+        [],
+    )
+
 
 def process_book(book: BookIO, overwrite: bool) -> bool:
     """
@@ -189,9 +207,6 @@ def process_book(book: BookIO, overwrite: bool) -> bool:
 
     # Write empty record if book should not be processed.
     if should_skip:
-        entry = LayoutData()
-        entry.book = book.barcode
-        entry.save(force_insert=True)
         click.echo(f"⏭️ #{book.barcode} was skipped.")
         return False
 
@@ -245,7 +260,7 @@ def parse_hocr(raw_hocr: str) -> tuple[PageMetadata, list[OCRChunk]]:
 
     Note:
     - Documents were OCR'd by Google at 50% of the page's original size
-    - All dimensions and bounding boxes are further reduced for faster processing (// 4)
+    - All dimensions and bounding boxes are further reduced for faster processing (BBOX_SCALING_FACTOR)
     """
     parsed_hocr = BeautifulSoup(raw_hocr, features="html.parser")
     page_metadata = PageMetadata()
@@ -266,8 +281,8 @@ def parse_hocr(raw_hocr: str) -> tuple[PageMetadata, list[OCRChunk]]:
         if prop.startswith("ocrp_lang"):
             page_metadata.language = prop.split(" ")[-1]
 
-    page_metadata.width = int(page_metadata.width) // 4
-    page_metadata.height = int(page_metadata.height) // 4
+    page_metadata.width = int(page_metadata.width) // BBOX_SCALING_FACTOR
+    page_metadata.height = int(page_metadata.height) // BBOX_SCALING_FACTOR
     page_metadata.number = int(page_metadata.number)
 
     #
@@ -299,7 +314,9 @@ def parse_hocr(raw_hocr: str) -> tuple[PageMetadata, list[OCRChunk]]:
         for attr in node.get("title").split(";"):
             if attr.startswith("bbox"):
                 bbox = attr.split(" ")[1:]
-                word.x_min, word.y_min, word.x_max, word.y_max = [int(val) // 4 for val in bbox]
+                word.x_min, word.y_min, word.x_max, word.y_max = [
+                    int(val) // BBOX_SCALING_FACTOR for val in bbox
+                ]
 
             if attr.startswith("x_wconf"):
                 word.confidence = int(attr.split(" ")[1])
