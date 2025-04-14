@@ -35,8 +35,8 @@ bash install.sh
 nano .env # (or any text editor)
 
 # Open python environment and pull source data / build the local database
-poetry shell
-python pipeline.py data build
+poetry shell # or: eval $(poetry env activate)
+python pipeline.py setup build
 ```
 
 [👆 Back to the summary](#summary)

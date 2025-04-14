@@ -9,3 +9,4 @@ TODO.txt
 *.csv.tar.gz
 *.txt
 tmp/
+data/

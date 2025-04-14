@@ -1,6 +1,6 @@
 # MACOS - Brew dependencies 
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    brew install pkg-config icu4c protobuf;
+    brew install pkg-config icu4c protobuf sqlite;
     export PATH="$(brew --prefix)/opt/icu4c/bin:$(brew --prefix)/opt/icu4c/sbin:$PATH";
     export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$(brew --prefix)/opt/icu4c/lib/pkgconfig";
 fi
