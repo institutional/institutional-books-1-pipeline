@@ -5,7 +5,14 @@ import click
 import peewee
 
 import utils
-from models import BookIO, PageCount, MainLanguage, TokenCount, HathitrustRightsDetermination
+from models import (
+    BookIO,
+    PageCount,
+    MainLanguage,
+    TokenCount,
+    HathitrustRightsDetermination,
+    YearOfPublication,
+)
 from const import OUTPUT_EXPORT_DIR_PATH, DATETIME_SLUG
 
 
@@ -22,28 +29,46 @@ def overview():
 
     with open(output_filepath, "w+") as fd:
         writer = csv.writer(fd)
+
         books_stats(writer)
         token_count_stats(writer)
         page_count_stats(writer)
         main_language_stats(writer)
+        year_of_publication_stats(writer)
         rights_determination_stats(writer)
+
+        #
+        # Years of publication
+        #
+
+        #
+        # OCR quality
+        #
 
         #
         # Text-level language detection
         #
 
         #
-        # Text analysis metrics
+        # Text analysis metrics + tokenizability
         #
 
         #
         # Deduplication data
         #
 
+        #
+        # Topic classification (+ split by book + average confidence)
+        #
+
+        #
+        # Layout-aware text stats
+        #
+
     click.echo(f"✅ {output_filepath.name} saved to disk.")
 
 
-def books_stats(writer: csv.writer):
+def books_stats(writer: csv.writer):  #
     writer.writerow(["BOOKS", " "])
 
     writer.writerow(
@@ -215,6 +240,60 @@ def rights_determination_stats(writer: csv.writer):
                     )
                 )
             )
+            .count(),
+        ]
+    )
+
+
+def year_of_publication_stats(writer: csv.writer):
+    writer.writerow(["PUBLICATION DATES", " "])
+
+    centuries_query = (
+        YearOfPublication.select(YearOfPublication.century)
+        .where(YearOfPublication.century.is_null(False))
+        .distinct()
+        .order_by(YearOfPublication.century)
+    )
+
+    decades_query = (
+        YearOfPublication.select(YearOfPublication.decade)
+        .where(YearOfPublication.decade.is_null(False))
+        .distinct()
+        .order_by(YearOfPublication.decade)
+    )
+
+    # Books by century
+    for century in [entry.century for entry in centuries_query]:
+
+        if century > 2000:
+            continue
+
+        writer.writerow(
+            [
+                f"Total books with a reported publication date in the {century}s",
+                YearOfPublication.select().where(YearOfPublication.century == century).count(),
+            ]
+        )
+
+    # Books by decade
+    for decade in [entry.decade for entry in decades_query]:
+
+        if decade > 2100:
+            continue
+
+        writer.writerow(
+            [
+                f"Total books with a reported publication date in the {decade}s",
+                YearOfPublication.select().where(YearOfPublication.decade == decade).count(),
+            ]
+        )
+
+    # No date or invalid date
+    writer.writerow(
+        [
+            f"Total books with no known or invalid publication date",
+            YearOfPublication.select()
+            .where(YearOfPublication.year.is_null(True) or YearOfPublication.year > 2100)
             .count(),
         ]
     )
