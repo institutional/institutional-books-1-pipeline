@@ -12,6 +12,7 @@ from models import (
     TokenCount,
     HathitrustRightsDetermination,
     YearOfPublication,
+    OCRQuality,
 )
 from const import OUTPUT_EXPORT_DIR_PATH, DATETIME_SLUG
 
@@ -34,36 +35,16 @@ def overview():
         token_count_stats(writer)
         page_count_stats(writer)
         main_language_stats(writer)
-        year_of_publication_stats(writer)
         rights_determination_stats(writer)
+        year_of_publication_stats(writer)
+        ocr_quality_stats(writer)
 
-        #
-        # Years of publication
-        #
-
-        #
         # OCR quality
-        #
-
-        #
-        # Text-level language detection
-        #
-
-        #
-        # Text analysis metrics + tokenizability
-        #
-
-        #
+        # Text-level language detection (> 10k tokens)
+        # Text analysis metrics (+ tokenizability)
         # Deduplication data
-        #
-
-        #
-        # Topic classification (+ split by book + average confidence)
-        #
-
-        #
+        # Topic classification (+ split by book, + average confidence)
         # Layout-aware text stats
-        #
 
     click.echo(f"✅ {output_filepath.name} saved to disk.")
 
@@ -270,7 +251,7 @@ def year_of_publication_stats(writer: csv.writer):
 
         writer.writerow(
             [
-                f"Total books with a reported publication date in the {century}s",
+                f"(by century) Total books with a reported publication date in the {century}s",
                 YearOfPublication.select().where(YearOfPublication.century == century).count(),
             ]
         )
@@ -283,7 +264,7 @@ def year_of_publication_stats(writer: csv.writer):
 
         writer.writerow(
             [
-                f"Total books with a reported publication date in the {decade}s",
+                f"(by decade) Total books with a reported publication date in the {decade}s",
                 YearOfPublication.select().where(YearOfPublication.decade == decade).count(),
             ]
         )
@@ -297,3 +278,67 @@ def year_of_publication_stats(writer: csv.writer):
             .count(),
         ]
     )
+
+
+def ocr_quality_stats(writer: csv.writer):
+    writer.writerow(["OCR QUALITY", " "])
+
+    # Average
+    writer.writerow(
+        [
+            f"Google Books-provided - Average",
+            OCRQuality.select(peewee.fn.AVG(OCRQuality.from_metadata)).scalar(),
+        ]
+    )
+
+    writer.writerow(
+        [
+            f"pleias/OCRoscope - Average",
+            OCRQuality.select(peewee.fn.AVG(OCRQuality.from_detection)).scalar(),
+        ]
+    )
+
+    # No data
+    writer.writerow(
+        [
+            f"Google Books-provided - Book with no score available",
+            OCRQuality.select().where(OCRQuality.from_metadata.is_null(True)).count(),
+        ]
+    )
+
+    writer.writerow(
+        [
+            f"pleias/OCRoscope - Book with no score available",
+            OCRQuality.select().where(OCRQuality.from_detection.is_null(True)).count(),
+        ]
+    )
+
+    # Average by decade
+    decades_query = (
+        YearOfPublication.select(YearOfPublication.decade)
+        .where(YearOfPublication.decade.is_null(False))
+        .distinct()
+        .order_by(YearOfPublication.decade)
+    )
+
+    for decade in [entry.decade for entry in decades_query]:
+        writer.writerow(
+            [
+                f"(by decade) Google Books-provided - Average for books likely published in the {decade}s",
+                OCRQuality.select(peewee.fn.AVG(OCRQuality.from_metadata))
+                .join(YearOfPublication, on=(OCRQuality.book == YearOfPublication.book))
+                .where(YearOfPublication.decade == decade)
+                .scalar(),
+            ]
+        )
+
+    for decade in [entry.decade for entry in decades_query]:
+        writer.writerow(
+            [
+                f"(by decade) pleias/OCRoscope - Average for books likely published in the {decade}s",
+                OCRQuality.select(peewee.fn.AVG(OCRQuality.from_metadata))
+                .join(YearOfPublication, on=(OCRQuality.book == YearOfPublication.book))
+                .where(YearOfPublication.decade == decade)
+                .scalar(),
+            ]
+        )
