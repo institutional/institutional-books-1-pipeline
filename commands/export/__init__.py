@@ -1,7 +1,7 @@
 import click
 
-from .csv import csv
-from .viz import viz
+from .misc import misc
+from .stats import stats
 
 
 @click.group("export")
@@ -10,5 +10,5 @@ def export():
     pass
 
 
-export.add_command(csv)
-export.add_command(viz)
+export.add_command(stats)
+export.add_command(misc)

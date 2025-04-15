@@ -1,52 +1,54 @@
 [tool.poetry]
-name = "hlbooks-pipeline"
-version = "0.0.1"
-description = ""
-package-mode = false
 authors = ["Institutional Data Initiative at Harvard Law School Library"]
+description = ""
+name = "hlbooks-pipeline"
+package-mode = false
 readme = "README.md"
+version = "0.0.1"
 
 [tool.poetry.dependencies]
-python = ">=3.11,<3.13"
-click = "^8.1.8"
-boto3 = "^1.37.0"
-python-dotenv = "^1.0.1"
-openai = "^1.64.0"
-python-slugify = "^8.0.4"
-peewee = "^3.17.9"
-transformers = "^4.49.0"
-torch = "^2.6.0"
 accelerate = "^1.4.0"
-more-itertools = "^10.6.0"
-scikit-learn = "^1.6.1"
-iso639-lang = "^2.6.0"
-langchain = "^0.3.19"
-pyfranc = "^0.2.3"
-polyglot = "^16.7.4"
-morfessor = "^2.0.6"
-pyicu = "^2.14"
-simhash = "^2.1.2"
-numpy = "1.26.4"
-humanize = "^4.12.1"
-tiktoken = "^0.9.0"
-protobuf = "^5.29.3"
-sentencepiece = "^0.2.0"
-ocroscope = {git = "https://github.com/Pleias/OCRoscope.git"}
+beautifulsoup4 = "^4.13.3"
+boto3 = "^1.37.0"
+click = "^8.1.8"
 datasets = "^3.5.0"
 diskcache = "^5.6.3"
-requests = "^2.32.3"
-torchvision = "^0.21.0"
-orjson = "^3.10.16"
-beautifulsoup4 = "^4.13.3"
-pillow = "^11.1.0"
+humanize = "^4.12.1"
+iso639-lang = "^2.6.0"
+langchain = "^0.3.19"
+more-itertools = "^10.6.0"
+morfessor = "^2.0.6"
+numpy = "1.26.4"
+ocroscope = {git = "https://github.com/Pleias/OCRoscope.git"}
+openai = "^1.64.0"
 opencv-python = "^4.11.0.86"
+orjson = "^3.10.16"
+peewee = "^3.17.9"
+pillow = "^11.1.0"
+polyglot = "^16.7.4"
+protobuf = "^5.29.3"
+pyfranc = "^0.2.3"
+pyicu = "^2.14"
+python = ">=3.11,<3.13"
+python-dotenv = "^1.0.1"
+python-slugify = "^8.0.4"
+requests = "^2.32.3"
+scikit-learn = "^1.6.1"
+sentencepiece = "^0.2.0"
+simhash = "^2.1.2"
+tiktoken = "^0.9.0"
+torch = "^2.6.0"
+torchvision = "^0.21.0"
+transformers = "^4.49.0"
+seaborn = "^0.13.2"
+pandas = "^2.2.3"
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
 
 [build-system]
-requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core"]
 
 [tool.black]
 line-length = 100
