@@ -45,7 +45,6 @@ def overview():
         deduplication_stats(writer)
         text_analysis_stats(writer)
 
-        # Deduplication data
         # Genres classification
         # Topic classification (+ split by book, + average confidence)
         # Layout-aware text stats
@@ -275,7 +274,7 @@ def rights_determination_stats(writer: csv.writer):
                     )
                 )
             )
-            .count(),
+            .count()
         ),
     )
 
@@ -434,6 +433,10 @@ def deduplication_stats(writer: csv.writer):
 
     simhashes = set()
 
+    total_unique_simhashes = (
+        ScannedTextSimhash.select().where(ScannedTextSimhash.hash.is_null(False)).distinct().count()
+    )
+
     total_books_with_simhash = (
         ScannedTextSimhash.select().where(ScannedTextSimhash.hash.is_null(False)).count()
     )
@@ -441,9 +444,7 @@ def deduplication_stats(writer: csv.writer):
     total_unique_books_with_dupes = 0
     total_books_with_at_least_one_dupe = 0
 
-    for simhash, books in hashes_to_books.items():
-
-        simhashes.add(simhash)
+    for books in hashes_to_books.values():
 
         if len(books) > 1:
             total_unique_books_with_dupes += 1
@@ -458,7 +459,7 @@ def deduplication_stats(writer: csv.writer):
     insert_row(
         writer,
         "Total unique simhashes",
-        len(simhashes),
+        total_unique_simhashes,
     )
 
     insert_row(
