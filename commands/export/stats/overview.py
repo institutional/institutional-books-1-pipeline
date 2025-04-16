@@ -371,10 +371,17 @@ def year_of_publication_stats(writer: csv.writer):
             YearOfPublication.century,
             fn.COUNT(YearOfPublication.book_id).alias("total"),
         )
-        .where(YearOfPublication.century.is_null(False) & YearOfPublication.century < 2100)
+        .where(YearOfPublication.century.is_null(False) & YearOfPublication.year < 2030)
         .group_by(YearOfPublication.century)
         .order_by(YearOfPublication.century)
     ):
+
+        if not item.century:
+            continue
+
+        if item.century > 2000:
+            continue
+
         insert_row(
             writer,
             f"Total books with a reported publication date in the {item.century}s",
@@ -392,10 +399,16 @@ def year_of_publication_stats(writer: csv.writer):
             YearOfPublication.decade,
             fn.COUNT(YearOfPublication.book_id).alias("total"),
         )
-        .where(YearOfPublication.decade.is_null(False) & YearOfPublication.decade < 2030)
+        .where(YearOfPublication.decade.is_null(False))
         .group_by(YearOfPublication.decade)
         .order_by(YearOfPublication.decade)
     ):
+        if not item.decade:
+            continue
+
+        if item.decade > 2020:
+            continue
+
         insert_row(
             writer,
             f"Total books with a reported publication date in the {item.decade}s",
