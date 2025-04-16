@@ -449,13 +449,13 @@ def ocr_quality_stats(writer: csv.writer):
     # No data
     insert_row(
         writer,
-        f"Google Books-provided - Book with no score available",
+        f"Google Books-provided - Books with no score available",
         OCRQuality.select().where(OCRQuality.from_metadata.is_null(True)).count(),
     )
 
     insert_row(
         writer,
-        f"pleias/OCRoscope - Book with no score available",
+        f"pleias/OCRoscope - Books with no score available",
         OCRQuality.select().where(OCRQuality.from_detection.is_null(True)).count(),
     )
 
@@ -559,6 +559,8 @@ def deduplication_stats(writer: csv.writer):
 
     hashes_to_books = utils.get_filtered_duplicates()
 
+    total_books_with_text = PageCount.select().where(PageCount.count_from_ocr > 0).count()
+
     total_unique_simhashes = (
         ScannedTextSimhash.select(ScannedTextSimhash.hash)
         .where(ScannedTextSimhash.hash.is_null(False))
@@ -606,9 +608,8 @@ def deduplication_stats(writer: csv.writer):
         writer,
         "(filtered) Total unique books (with text) in the collection",
         (
-            total_books_with_simhash
-            - total_books_with_at_least_one_dupe
-            + total_unique_books_with_dupes
+            total_books_with_text
+            - (total_books_with_at_least_one_dupe + total_unique_books_with_dupes)
         ),
     )
 
