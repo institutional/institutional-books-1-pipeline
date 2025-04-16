@@ -186,7 +186,7 @@ def main_language_stats(writer: csv.writer):
 
     insert_row(
         writer,
-        "Total books with no main language metadata",
+        "Total books with no main language from metadata",
         (
             MainLanguage.select()
             .where(
