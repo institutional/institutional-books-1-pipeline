@@ -742,7 +742,7 @@ def genre_classification_stats(writer: csv.writer):
 
         insert_row(
             writer,
-            f"(Top 50) Books labeled as {item.from_metadata}",
+            f"Books labeled as {item.from_metadata}",
             item.total,
             item.from_metadata,
         )
@@ -798,7 +798,7 @@ def topic_classification_stats(writer: csv.writer):
 
         insert_row(
             writer,
-            f"(Top 50) Books labeled as {item.from_metadata}",
+            f"Books labeled as {item.from_metadata}",
             item.total,
             item.from_metadata,
         )
