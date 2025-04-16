@@ -926,4 +926,4 @@ def layout_aware_text_stats(writer: csv.writer):
     """
     # Temporary
     insert_section(writer, f"LAYOUT-AWARE TEXT EXPORT")
-    insert_row(writer, f"Total layout-aware texts generated", 0)
+    insert_row(writer, f"Total layout-aware texts exported", 0)
