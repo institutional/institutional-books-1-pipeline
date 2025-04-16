@@ -560,7 +560,10 @@ def deduplication_stats(writer: csv.writer):
     hashes_to_books = utils.get_filtered_duplicates()
 
     total_unique_simhashes = (
-        ScannedTextSimhash.select().where(ScannedTextSimhash.hash.is_null(False)).distinct().count()
+        ScannedTextSimhash.select(ScannedTextSimhash.hash)
+        .where(ScannedTextSimhash.hash.is_null(False))
+        .distinct()
+        .count()
     )
 
     total_books_with_simhash = (
@@ -601,7 +604,7 @@ def deduplication_stats(writer: csv.writer):
 
     insert_row(
         writer,
-        "(filtered) Total unique books (with text) in the collection collection",
+        "(filtered) Total unique books (with text) in the collection",
         (
             total_books_with_simhash
             - total_books_with_at_least_one_dupe
