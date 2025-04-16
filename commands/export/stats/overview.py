@@ -385,6 +385,8 @@ def year_of_publication_stats(writer: csv.writer):
     #
     # Books by decade
     #
+    insert_section(writer, "REPORTED PUBLICATION DATES - BY DECADE")
+
     for item in (
         YearOfPublication.select(
             YearOfPublication.decade,
