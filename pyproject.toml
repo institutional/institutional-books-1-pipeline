@@ -40,7 +40,6 @@ tiktoken = "^0.9.0"
 torch = "^2.6.0"
 torchvision = "^0.21.0"
 transformers = "^4.49.0"
-seaborn = "^0.13.2"
 pandas = "^2.2.3"
 
 [tool.poetry.group.dev.dependencies]

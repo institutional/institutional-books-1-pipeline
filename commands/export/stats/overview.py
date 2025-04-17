@@ -3,6 +3,8 @@ from pathlib import Path
 
 import click
 from peewee import fn
+import numpy as np
+import humanize
 
 import utils
 from models import (
@@ -82,14 +84,18 @@ def books_stats(writer: csv.writer):
 
     insert_row(
         writer,
-        "Total books with text",
-        PageCount.select().where(PageCount.count_from_ocr > 0).count(),
+        "Total books with scans",
+        PageCount.select().where(PageCount.count_from_metadata > 0).count(),
     )
 
     insert_row(
         writer,
-        "Total books without text",
-        PageCount.select().where(PageCount.count_from_ocr < 1).count(),
+        "Total books with OCR text (at least 100 o200k_base tokens)",
+        (
+            TokenCount.select()
+            .where(TokenCount.target_llm == "openai/gpt-4o", TokenCount.count > 100)
+            .count()
+        ),
     )
 
 
@@ -133,6 +139,43 @@ def token_count_stats(writer: csv.writer):
             item.target_llm,
         )
 
+    #
+    # Token count distribution
+    #
+    insert_section(writer, "TOKEN COUNT DISTRIBUTION (o200k_base")
+
+    token_count_bins = np.logspace(
+        np.log10(100),
+        np.log10(
+            TokenCount.select(fn.MAX(TokenCount.count))
+            .where(TokenCount.target_llm == "openai/gpt-4o")
+            .scalar()
+        ),
+        16,
+    )
+
+    token_count_bins = [round(x, -int(np.floor(np.log10(x)))) for x in token_count_bins]
+    token_count_bins = [0] + token_count_bins
+
+    for i in range(1, len(token_count_bins)):
+        start = int(token_count_bins[i - 1])
+        end = int(token_count_bins[i])
+
+        insert_row(
+            writer,
+            f"Books with {humanize.intcomma(start)} to {humanize.intcomma(end)} tokens",
+            (
+                TokenCount.select()
+                .where(
+                    TokenCount.target_llm == "openai/gpt-4o",
+                    TokenCount.count >= start,
+                    TokenCount.count < end,
+                )
+                .count()
+            ),
+            f"{humanize.intcomma(start)} to {humanize.intcomma(end)}",
+        )
+
 
 def page_count_stats(writer: csv.writer):
     """
@@ -140,17 +183,51 @@ def page_count_stats(writer: csv.writer):
     """
     insert_section(writer, "PAGE COUNT")
 
+    # Total pages
     insert_row(
         writer,
         "Total pages",
         PageCount.select(fn.SUM(PageCount.count_from_ocr)).scalar(),
     )
 
+    # Average pages
     insert_row(
         writer,
         "Average page count",
         PageCount.select(fn.AVG(PageCount.count_from_ocr)).scalar(),
     )
+
+    #
+    # Token count distribution
+    #
+    insert_section(writer, "PAGE COUNT DISTRIBUTION")
+
+    page_count_bins = np.logspace(
+        np.log10(10),
+        np.log10(PageCount.select(fn.MAX(PageCount.count_from_metadata)).scalar()),
+        16,
+    )
+
+    page_count_bins = [round(x, -int(np.floor(np.log10(x)))) for x in page_count_bins]
+    page_count_bins = [0] + page_count_bins
+
+    for i in range(1, len(page_count_bins)):
+        start = int(page_count_bins[i - 1])
+        end = int(page_count_bins[i])
+
+        insert_row(
+            writer,
+            f"Books with {humanize.intcomma(start)} to {humanize.intcomma(end)} pages",
+            (
+                PageCount.select()
+                .where(
+                    PageCount.count_from_metadata >= start,
+                    PageCount.count_from_metadata < end,
+                )
+                .count()
+            ),
+            f"{humanize.intcomma(start)} to {humanize.intcomma(end)}",
+        )
 
 
 def main_language_stats(writer: csv.writer):
@@ -559,7 +636,14 @@ def deduplication_stats(writer: csv.writer):
 
     hashes_to_books = utils.get_filtered_duplicates()
 
-    total_books_with_text = PageCount.select().where(PageCount.count_from_ocr > 0).count()
+    total_books_with_text = (
+        TokenCount.select()
+        .where(
+            TokenCount.target_llm == "openai/gpt-4o",
+            TokenCount.count > 100,
+        )
+        .count()
+    )
 
     total_unique_simhashes = (
         ScannedTextSimhash.select(ScannedTextSimhash.hash)
@@ -618,8 +702,6 @@ def text_analysis_stats(writer: csv.writer):
     """
     Writes text analysis-related stats to CSV.
     """
-    insert_section(writer, "TEXT ANALYSIS")
-
     # Characters
     insert_row(
         writer,
@@ -652,7 +734,9 @@ def text_analysis_stats(writer: csv.writer):
         TextAnalysis.select(fn.AVG(TextAnalysis.word_type_token_ratio)).scalar(),
     )
 
+    #
     # Bigrams
+    #
     insert_row(
         writer,
         f"Average bigram count",
