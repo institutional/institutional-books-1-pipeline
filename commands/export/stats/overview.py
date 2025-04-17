@@ -362,8 +362,24 @@ def rights_determination_stats(writer: csv.writer):
         (
             HathitrustRightsDetermination.select()
             .where(
-                (HathitrustRightsDetermination.rights_code in ["pd", "pdus", "cc-zero"])
-                & (HathitrustRightsDetermination.us_rights_string == "Full view")
+                HathitrustRightsDetermination.rights_code in ["pd", "pdus", "cc-zero"],
+                HathitrustRightsDetermination.us_rights_string == "Full view",
+            )
+            .count()
+        ),
+    )
+
+    insert_row(
+        writer,
+        f'Total books flagged as either PD, PDUS or CC-ZERO and "Full view" by Hathitrust that have scans',
+        (
+            HathitrustRightsDetermination.select()
+            .where(
+                HathitrustRightsDetermination.rights_code in ["pd", "pdus", "cc-zero"],
+                HathitrustRightsDetermination.us_rights_string == "Full view",
+                HathitrustRightsDetermination.book.in_(
+                    PageCount.select(PageCount.book).where(PageCount.count_from_metadata > 0)
+                ),
             )
             .count()
         ),
@@ -375,13 +391,14 @@ def rights_determination_stats(writer: csv.writer):
         (
             HathitrustRightsDetermination.select()
             .where(
-                (HathitrustRightsDetermination.rights_code in ["pd", "pdus", "cc-zero"])
-                & (HathitrustRightsDetermination.us_rights_string == "Full view")
-                & (
-                    HathitrustRightsDetermination.book.in_(
-                        PageCount.select(PageCount.book).where(PageCount.count_from_ocr > 0)
+                HathitrustRightsDetermination.rights_code in ["pd", "pdus", "cc-zero"],
+                HathitrustRightsDetermination.us_rights_string == "Full view",
+                HathitrustRightsDetermination.book.in_(
+                    TokenCount.select(TokenCount.book).where(
+                        TokenCount.target_llm == "openai/gpt-4o",
+                        TokenCount.count > 100,
                     )
-                )
+                ),
             )
             .count()
         ),
@@ -448,7 +465,10 @@ def year_of_publication_stats(writer: csv.writer):
             YearOfPublication.century,
             fn.COUNT(YearOfPublication.book_id).alias("total"),
         )
-        .where(YearOfPublication.century.is_null(False) & YearOfPublication.year < 2030)
+        .where(
+            YearOfPublication.century.is_null(False),
+            YearOfPublication.year < 2030,
+        )
         .group_by(YearOfPublication.century)
         .order_by(YearOfPublication.century)
     ):
@@ -596,7 +616,8 @@ def language_detection_stats(writer: csv.writer):
         (
             LanguageDetection.select(LanguageDetection.iso693_3)
             .where(
-                (LanguageDetection.iso693_3.is_null(False)) & (LanguageDetection.token_count > 1000)
+                LanguageDetection.iso693_3.is_null(False),
+                LanguageDetection.token_count > 1000,
             )
             .distinct()
             .count()
@@ -616,7 +637,10 @@ def language_detection_stats(writer: csv.writer):
             LanguageDetection.iso693_3,
             fn.SUM(LanguageDetection.token_count).alias("total_tokens"),
         )
-        .where((LanguageDetection.iso693_3.is_null(False)) & (LanguageDetection.token_count > 1000))
+        .where(
+            LanguageDetection.iso693_3.is_null(False),
+            LanguageDetection.token_count > 1000,
+        )
         .group_by(LanguageDetection.iso693_3)
         .order_by(LanguageDetection.iso693_3)
     ):
@@ -693,7 +717,8 @@ def deduplication_stats(writer: csv.writer):
         "(filtered) Total unique books (with text) in the collection",
         (
             total_books_with_text
-            - (total_books_with_at_least_one_dupe + total_unique_books_with_dupes)
+            - total_books_with_at_least_one_dupe
+            + total_unique_books_with_dupes
         ),
     )
 
@@ -702,6 +727,8 @@ def text_analysis_stats(writer: csv.writer):
     """
     Writes text analysis-related stats to CSV.
     """
+    insert_section(writer, "TEXT ANALYSIS")
+
     # Characters
     insert_row(
         writer,
