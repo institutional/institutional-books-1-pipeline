@@ -5,11 +5,13 @@ import click
 
 import utils
 from const import OUTPUT_EXPORT_DIR_PATH, DATETIME_SLUG
-from models import BookIO
+from models import BookIO, HathitrustRightsDetermination
 
 FIELDS_TO_EXPORT = [
     "Barcode",
     "Google Books Link",
+    # Only addition: Hathitrust link
+    "Hathitrust Link",
     # GXML
     "gxml Control Number",
     "gxml Date 1",
@@ -58,17 +60,33 @@ FIELDS_TO_EXPORT = [
 
 
 @click.command("simplified-source-metadata")
+@click.option(
+    "--pd-only",
+    is_flag=True,
+    default=False,
+    help="If set, only exports records flagged as PD / PDUS / CC-ZERO by Hathitrust.",
+)
 @utils.needs_pipeline_ready
-def simplified_source_metadata():
+def simplified_source_metadata(pd_only: bool):
     """
     Simplified CSV export of the metadata originally coming from GRIN.
 
     Saved as:
-    - `/data/output/export/simplified-source-metadata-{datetime}.csv`
+    - `/data/output/export/simplified-source-metadata-{pd}-{datetime}.csv`
     """
+    output_filepath = None
+
+    # Dependencies check
+    if pd_only:
+        try:
+            assert BookIO.select().count() == HathitrustRightsDetermination.select().count()
+        except:
+            click.echo("Hathitrust rights determination data is not available.")
+            exit(1)
+
     output_filepath = Path(
         OUTPUT_EXPORT_DIR_PATH,
-        f"simplified-source-metadata-{DATETIME_SLUG}.csv",
+        f"simplified-source-metadata-{"pd-" if pd_only else ""}{DATETIME_SLUG}.csv",
     )
 
     with open(output_filepath, "w+") as fd:
@@ -78,6 +96,21 @@ def simplified_source_metadata():
 
         for book in BookIO.select().order_by(BookIO.barcode).iterator():
             row = []
+
+            if pd_only:
+                try:
+                    rights_determination = book.hathitrustrightsdetermination_set[0]
+                    assert rights_determination.rights_code in ["pd", "pdus", "cc-zero"]
+                    assert rights_determination.us_rights_string == "Full view"
+                except:
+                    continue
+
+            # Addition: Hathitrust Link
+            csv_data = book.csv_data
+
+            csv_data["Hathitrust Link"] = (
+                f"https://babel.hathitrust.org/cgi/pt?id=hvd.{book.barcode.lower()}"
+            )
 
             for field in FIELDS_TO_EXPORT:
                 row.append(book.csv_data[field])
