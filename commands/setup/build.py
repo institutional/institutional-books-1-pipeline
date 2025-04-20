@@ -28,10 +28,10 @@ import utils.pipeline_readiness
 
 @click.command("build")
 @click.option(
-    "--update",
+    "--overwrite",
     is_flag=True,
     default=False,
-    help="If set, updates existing entries.",
+    help="If set, overwrites existing files.",
 )
 @click.option(
     "--tables-only",
@@ -52,7 +52,7 @@ import utils.pipeline_readiness
     help="Determines how many works can be spun up for multiprocessing tasks.",
 )
 def build(
-    update: bool,
+    overwrite: bool,
     tables_only: bool,
     max_parallel_downloads: int,
     max_workers: int,
@@ -114,7 +114,7 @@ def build(
                 pull_and_unpack_jsonl_gz_file,
                 target_bucket_name,
                 remote_filepath,
-                update,
+                overwrite,
             )
 
             futures.append(batch)
@@ -133,7 +133,7 @@ def build(
     #
     for tranche, bucket_name in GRIN_TO_S3_TRANCHES_TO_BUCKET_NAMES.items():
         try:
-            pull_csv_file(tranche, bucket_name, update)
+            pull_csv_file(tranche, bucket_name, overwrite)
         except Exception:
             click.echo(traceback.format_exc())
             click.echo("Could not download books.csv file. Interrupting.")
@@ -248,7 +248,7 @@ def list_remote_jsonl_gz_files(bucket_name: str) -> list[str]:
 def pull_and_unpack_jsonl_gz_file(
     bucket_name: str,
     remote_jsonl_gz_filepath: str,
-    update: bool = False,
+    overwrite: bool = False,
 ) -> bool:
     """
     Pulls a remote jsonl.gz file and unpacks it.
@@ -259,9 +259,9 @@ def pull_and_unpack_jsonl_gz_file(
     local_jsonl_gz_filepath = Path(INPUT_JSONL_DIR_PATH, jsonl_gz_filename)
     local_jsonl_filepath = Path(INPUT_JSONL_DIR_PATH, jsonl_filename)
 
-    # Check if file already exists if update is False
-    if update is False and local_jsonl_filepath.exists() and local_jsonl_filepath.stat().st_size:
-        click.echo(f"⏭️ Skipping {jsonl_gz_filename} (already present + no update)")
+    # Check if file already exists if overwrite is False
+    if overwrite is False and local_jsonl_filepath.exists() and local_jsonl_filepath.stat().st_size:
+        click.echo(f"⏭️ Skipping {jsonl_gz_filename} (already present + no overwrite)")
         return
 
     # Download
@@ -286,7 +286,7 @@ def pull_and_unpack_jsonl_gz_file(
     return True
 
 
-def pull_csv_file(tranche: str, bucket_name: str, update: bool = False) -> bool:
+def pull_csv_file(tranche: str, bucket_name: str, overwrite: bool = False) -> bool:
     """
     Pulls a {tranche}-book.csv file.
     """
@@ -301,9 +301,9 @@ def pull_csv_file(tranche: str, bucket_name: str, update: bool = False) -> bool:
         remote_csv_filepath.name,
     )
 
-    # Check if file already exists if update is False
-    if update is False and local_csv_filepath.exists() and local_csv_filepath.stat().st_size:
-        click.echo(f"⏭️ Skipping {local_csv_filepath.name} (already present + no update)")
+    # Check if file already exists if overwrite is False
+    if overwrite is False and local_csv_filepath.exists() and local_csv_filepath.stat().st_size:
+        click.echo(f"⏭️ Skipping {local_csv_filepath.name} (already present + no overwrite)")
         return
 
     click.echo(f"⬇️ Downloading {local_csv_filepath.name}")

@@ -15,6 +15,7 @@ The Institutional Data Initiative's pipeline for analyzing and refining the HLBo
 ## Summary 
 - [Getting started](#getting-started)
 - [Available utilities](#available-utilities)
+- [CLI: Common options](#cli-common-options)
 - [CLI: `setup`](#cli-setup)
 - [CLI: `analyze`](#cli-analyze)
 - [CLI: `process`](#cli-process)
@@ -95,6 +96,24 @@ All [models](/models/) cross-reference `BookIO` via a `book` foreign key.
 
 ---
 
+## CLI: Common options
+
+All of the CLI commands listed in this README have a `--help` flag that lists its options.
+
+Here are common options:
+
+| Option name | Description |
+| --- | --- |
+| `--overwrite` | Delete existing entries/files if they already exist |
+| `--offset` and `--limit` | Allows for running an operation on a subset of `BookIO` entries. Entries are ordered by barcode. |
+| `--max-worders` | For commands that spin up sub processes, allows for determining how many workers should be created. |
+| `--db-write-batch-size` | Allows for determining how many entries should be processed before writing to the database. Matters in a very limited number of contexts. |
+
+
+[👆 Back to the summary](#summary)
+
+---
+
 ## CLI: setup 
 
 <details>
@@ -109,7 +128,6 @@ Initializes the pipeline:
 
 ```bash
 python pipeline.py setup build
-python pipeline.py setup build --update # Overwrite existing source files
 python pipeline.py setup build --tables-only # Allows for only creating tables without populating them
 ```
 </details>
@@ -132,6 +150,27 @@ Clears local data. Asks for confirmation before deleting each top-level folder/i
 
 ```bash
 python pipeline.py setup clear
+```
+
+</details>
+
+[👆 Back to the summary](#summary)
+
+---
+
+## CLI: setup 
+
+<details>
+<summary><h3>analyze extract-genre-classification-from-metadata</h3></summary>
+
+Reads and stores "genre/form" classification data available for each book in the collection's metadata.
+
+Notes:
+- Extracted from `gxml Index Term-Genre/Form` (via `book.csv_data`)
+- Skips entries that were already analyzed, unless instructed otherwise.
+
+```bash
+python pipeline.py analyze extract-genre-classification-from-metadata
 ```
 
 </details>
