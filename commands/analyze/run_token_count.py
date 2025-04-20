@@ -56,12 +56,13 @@ def run_token_count(
     db_write_batch_size: int,
 ):
     """
-    Tokenizes the text of each newspaper issue and saves the resulting token counts in the database.
+    Tokenizes the OCR'd text of each entry and saves the resulting token counts in the database.
     Uses the tokenizer of the target LLM specified via `--target-llm`.
 
     Notes:
+    - `--target-llm` can identify both OpenAI and HuggingFace-hosted models. Prefix with `openai/` for OpenAI models.
     - Skips texts that were already analyzed with this specific tokenizer, unless instructed otherwise.
-    - A valid HuggingFace access might be needed to access some of the target tokenizers: See huggingface_cli's documentation.
+    - A valid HuggingFace token might be needed to access some of the target tokenizers.
     """
     tokenizer = None
     tokenizer_name = ""

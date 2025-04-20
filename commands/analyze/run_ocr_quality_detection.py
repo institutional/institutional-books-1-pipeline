@@ -36,7 +36,7 @@ def run_ocr_quality_detection(
     max_workers: int,
 ):
     """
-    Runs Pleais/OCROScope on the OCR'd text of each book as a way to collect a secondary OCR quality metric.
+    Runs pleais/OCROScope on the OCR'd text of each book in order to collect a secondary OCR quality metric.
 
     Notes:
     - Skips entries that were already analyzed, unless instructed otherwise

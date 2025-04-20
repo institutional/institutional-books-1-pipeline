@@ -57,7 +57,7 @@ def run_simhash(
     max_workers: int,
 ):
     """
-    Generate a simhash for every OCR'd text in the collection as a way to coarsely identify near duplicates.
+    Generate a simhash for every OCR'd text in the collection in order to coarsely identify collection-level near duplicates.
 
     Notes:
     - Skips entries that were already analyzed, unless instructed otherwise.

@@ -59,12 +59,12 @@ def run_topic_classification(
 
     Notes:
     - The model was trained on the data filtered by `extract-topic-classification-training-dataset`
-    - This command updates TopicClassification records
+    - This command updates `TopicClassification` records
+    - Uses `instdin/hlbooks-topic-classifier-bert-multilingual-uncased` by default
 
     Benchmark mode:
     - Runs topic classification model on 1000 records set aside for benchmarking purposes.
-    - Results of the benchmark will be saved as:
-      `/data/output/export/topic-classification-benchmark-{model-name}-{datetime}.csv`
+    - Results of the benchmark will be saved as: `/data/output/export/topic-classification-benchmark-{model-name}-{datetime}.csv`
     """
     #
     # Dependencies check

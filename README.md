@@ -312,6 +312,94 @@ python pipeline.py analyze run-language-detection
 
 </details>
 
+<details>
+<summary><h3>analyze run-ocr-quality-detection</h3></summary>
+
+Runs [pleais/OCROScope](https://github.com/Pleias/OCRoscope) on the OCR'd text of each book in order to collect a secondary OCR quality metric.
+
+Notes:
+- Skips entries that were already analyzed, unless instructed otherwise
+
+```bash
+python pipeline.py analyze run-ocr-quality-detection
+```
+
+</details>
+
+<details>
+<summary><h3>analyze run-simhash</h3></summary>
+
+Generate a simhash for every OCR'd text in the collection in order to coarsely identify collection-level near duplicates.
+
+Notes:
+- Skips entries that were already analyzed, unless instructed otherwise.
+
+```bash
+python pipeline.py analyze run-simhash
+```
+
+</details>
+
+<details>
+<summary><h3>analyze run-text-analysis</h3></summary>
+
+Runs simple text analysis methods on the OCR'd text of each entry in the collection.
+
+Collects metrics such as:
+- character/word/bigram/trigram/sentence counts.
+- token-type ratios.
+- tokenizability (how "well" a given text tokenizes using `o200k_base`).
+
+Notes:
+- Skips entries that were already analyzed, unless instructed otherwise
+
+```bash
+python pipeline.py analyze run-text-analysis
+```
+
+</details>
+
+
+<details>
+<summary><h3>analyze run-token-count</h3></summary>
+
+Tokenizes the OCR'd text of each entry and saves the resulting token counts in the database.
+Uses the tokenizer of the target LLM specified via `--target-llm`.
+
+Notes:
+- `--target-llm` can identify both OpenAI and HuggingFace-hosted models. Prefix with `openai/` for OpenAI models.
+- Skips texts that were already analyzed with this specific tokenizer, unless instructed otherwise.
+- A valid HuggingFace token might be needed to access some of the target tokenizers.
+
+```bash
+python pipeline.py analyze run-token-count --target-llm="openai/gpt-4o"
+python pipeline.py analyze run-token-count --target-llm="mistralai/Mixtral-8x22B-Instruct-v0.1"
+python pipeline.py analyze run-token-count --target-llm="microsoft/phi-4"
+```
+
+</details>
+
+<details>
+<summary><h3>analyze run-topic-classification</h3></summary>
+
+Runs a topic classification model on the collection.
+
+Notes:
+- The model was trained on the data filtered by `extract-topic-classification-training-dataset`
+- This command updates `TopicClassification` records
+- Uses [instdin/hlbooks-topic-classifier-bert-multilingual-uncased](https://huggingface.co/instdin/hlbooks-topic-classifier-bert-multilingual-uncased) by default
+
+Benchmark mode:
+- Runs topic classification model on 1000 records set aside for benchmarking purposes.
+- Results of the benchmark will be saved as: `/data/output/export/topic-classification-benchmark-{model-name}-{datetime}.csv`
+
+```bash
+python pipeline.py analyze run-topic-classification --benchmark-mode # 1000 benchmark entries
+python pipeline.py analyze run-topic-classification # Actual classification run
+python pipeline.py analyze run-topic-classification --device # Allows for specifying on which torch device the model should run
+```
+
+</details>
 
 [👆 Back to the summary](#summary)
 

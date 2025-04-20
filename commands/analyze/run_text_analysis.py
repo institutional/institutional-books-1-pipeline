@@ -51,10 +51,12 @@ def run_text_analysis(
     max_workers: int,
 ):
     """
-    Runs text analysis on the OCR'd text of each book in the collection:
-    - character/word/n-gram/sentence counts
-    - token-type ratios
-    - tokenizability
+    Runs simple text analysis methods on the OCR'd text of each entry in the collection.
+
+    Collects metrics such as:
+    - character/word/bigram/trigram/sentence counts.
+    - token-type ratios.
+    - tokenizability (how "well" a given text tokenizes using `o200k_base`).
 
     Notes:
     - Skips entries that were already analyzed, unless instructed otherwise
@@ -75,6 +77,9 @@ def run_text_analysis(
         click.echo("This command needs language detection data.")
         exit(1)
 
+    #
+    # Process books in batches
+    #
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         futures = []
 
