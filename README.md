@@ -163,7 +163,7 @@ python pipeline.py setup clear
 <details>
 <summary><h3>analyze extract-genre-classification-from-metadata</h3></summary>
 
-Collectsgenre/form classification data for each book from the collection's metadata.
+Collects genre/form classification data for each book from the collection's metadata.
 
 Notes:
 - Extracted from `gxml Index Term-Genre/Form` (via `book.csv_data`)
