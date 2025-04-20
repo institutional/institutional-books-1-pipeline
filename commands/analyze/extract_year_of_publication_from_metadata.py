@@ -30,7 +30,7 @@ from models import BookIO, YearOfPublication
     type=int,
     required=False,
     default=10_000,
-    help="Determines the frequency at which records are pushed to the database. By default: once every 10,000 record creation/update request.",
+    help="Determines the frequency at which the database will be updated (every X entries). By default: every 10,000 entries.",
 )
 @utils.needs_pipeline_ready
 def extract_year_of_publication_from_metadata(
@@ -40,10 +40,13 @@ def extract_year_of_publication_from_metadata(
     db_write_batch_size: int,
 ):
     """
-    Determines, for each record, the likely year of publication based on existing metadata.
+    Collects, for each entry, the likely year of publication based on existing metadata.
     This is meant to be used for statistical analysis purposes only.
 
     Notes:
+    - Extracted from either `mods Publication Date`, `gxml Date1 ` or `gxml Date 2` (via `book.csv_data`)
+    - Entries with where `gxml Date Type` is either `Continuing resource` or `No attempt to code` will be skipped.
+    - Incomplete years will be ignored (e.g: `19uu`, `1uuu`, `9999` ...)
     - Skips entries that were already analyzed, unless instructed otherwise.
     """
     entries_to_create = []

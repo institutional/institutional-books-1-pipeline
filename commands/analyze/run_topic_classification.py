@@ -44,7 +44,7 @@ MODEL_NAME = "instdin/hlbooks-topic-classifier-bert-multilingual-uncased"
     type=int,
     required=False,
     default=10_000,
-    help="Determines the frequency at which records are pushed to the database. By default: once every 10,000 record creation/update request.",
+    help="Determines the frequency at which the database will be updated (every X entries). By default: every 10,000 entries.",
 )
 @utils.needs_pipeline_ready
 def run_topic_classification(

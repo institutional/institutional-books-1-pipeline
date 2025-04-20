@@ -28,7 +28,7 @@ from models import BookIO, TopicClassification
     type=int,
     required=False,
     default=10_000,
-    help="Determines the frequency at which records are pushed to the database. By default: once every 10,000 record creation/update request.",
+    help="Determines the frequency at which the database will be updated (every X entries). By default: every 10,000 entries.",
 )
 @utils.needs_pipeline_ready
 def extract_topic_classification_from_metadata(
@@ -38,10 +38,10 @@ def extract_topic_classification_from_metadata(
     db_write_batch_size: int,
 ):
     """
-    Topic classification experiments, step 01:
-    Collects the "topic/subject" classification of each book as expressed in the collection's metadata.
+    Collects topic/subject classification data for each book from the collection's metadata.
 
     Notes:
+    - Extracted from `gxml Subject Added Entry-Topical Term` (via `book.csv_data`)
     - Skips entries that were already analyzed, unless instructed otherwise.
     """
     entries_to_create = []

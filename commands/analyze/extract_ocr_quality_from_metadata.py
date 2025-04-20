@@ -28,7 +28,7 @@ from models import BookIO, OCRQuality
     type=int,
     required=False,
     default=10_000,
-    help="Determines the frequency at which records are pushed to the database. By default: once every 10,000 record creation/update request.",
+    help="Determines the frequency at which the database will be updated (every X entries). By default: every 10,000 entries.",
 )
 @utils.needs_pipeline_ready
 def extract_ocr_quality_from_metadata(

@@ -219,7 +219,7 @@ LOC_CO_TO_GXML_TOPICS = {
     ],
 }
 """ 
-    Loose mapping between target topics and examples of existing topic/subjects from the collection.
+    Loose mapping between target topics and examples of existing topic/subjects present in the collection's metadata.
     This mapping is used to build a training dataset.
     Target content categories: first level the Library of Congress' Classification Outline (https://www.loc.gov/catdir/cpso/lcco/).
 """
@@ -239,13 +239,17 @@ GXML_TOPICS_TO_LOC_CO = {
 @utils.needs_pipeline_ready
 def extract_topic_classification_training_dataset():
     """
-    Extract topic classification items that can be used to train a classification model.
+    Collects topic classification items that can be used to train a text classification model.
+    Said text classification model's goal is to assign a top-level category from the Library of Congress' Classification Outline to a given book based on its metadata.
 
     Isolates entries where:
-    - `TopicClassification.from_metadata` only contains 1 term
-    - Said term can be matched with one of the top-level items from the Library Of Congress Classification Outline.
+    - `TopicClassification.from_metadata` only contains 1 term (no comma)
+    - Said term can be matched with one of the top-level items from the Library Of Congress Classification Outline (see `LOC_CO_TO_GXML_TOPICS`).
 
-    Replaces existing training set if already present.
+    Notes:
+    - Replaces existing training set if already present.
+    - Training dataset is split between "train" (most entries), "test" (validation, 5000 entries), "benchmark" (1000 entries).
+    - See `export topic-classification-training-set` to export the results of this command.
     """
     full_set = []
     train = []

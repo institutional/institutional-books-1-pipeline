@@ -28,7 +28,7 @@ from models import BookIO, GenreClassification
     type=int,
     required=False,
     default=10_000,
-    help="Determines the frequency at which records are pushed to the database. By default: once every 10,000 record creation/update request.",
+    help="Determines the frequency at which the database will be updated (every X entries). By default: every 10,000 entries.",
 )
 @utils.needs_pipeline_ready
 def extract_genre_classification_from_metadata(
@@ -38,7 +38,7 @@ def extract_genre_classification_from_metadata(
     db_write_batch_size: int,
 ):
     """
-    Collects genre or form classification data for each book from the collection's metadata.
+    Collectsgenre/form classification data for each book from the collection's metadata.
 
     Notes:
     - Extracted from `gxml Index Term-Genre/Form` (via `book.csv_data`)

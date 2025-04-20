@@ -163,7 +163,7 @@ python pipeline.py setup clear
 <details>
 <summary><h3>analyze extract-genre-classification-from-metadata</h3></summary>
 
-Collects genre or form classification data for each book from the collection's metadata.
+Collectsgenre/form classification data for each book from the collection's metadata.
 
 Notes:
 - Extracted from `gxml Index Term-Genre/Form` (via `book.csv_data`)
@@ -233,6 +233,60 @@ Notes:
 
 ```bash
 python pipeline.py analyze extract-page-count
+```
+
+</details>
+
+<details>
+<summary><h3>analyze extract-topic-classification-from-metadata</h3></summary>
+
+Collects topic/subject classification data for each book from the collection's metadata.
+
+Notes:
+- Extracted from `gxml Subject Added Entry-Topical Term` (via `book.csv_data`)
+- Skips entries that were already analyzed, unless instructed otherwise.
+
+```bash
+python pipeline.py analyze extract-topic-classification-from-metadata
+```
+
+</details>
+
+<details>
+<summary><h3>analyze extract-topic-classification-training-dataset</h3></summary>
+
+Collects topic classification items that can be used to train a text classification model.
+Said text classification model's goal is to assign a top-level category from the [Library of Congress' Classification Outline](https://www.loc.gov/catdir/cpso/lcco/) to a given book based on its metadata.
+
+Isolates entries where:
+- `TopicClassification.from_metadata` only contains 1 term (no comma)
+- Said term can be matched with one of the top-level items from the Library Of Congress Classification Outline (see `LOC_CO_TO_GXML_TOPICS`).
+
+Notes:
+- Replaces existing training set if already present.
+- Training dataset is split between "train" (most entries), "test" (validation, 5000 entries), "benchmark" (1000 entries).
+- See `export topic-classification-training-set` to export the results of this command.
+
+```bash
+python pipeline.py analyze extract-topic-classification-training-dataset
+```
+
+</details>
+
+<details>
+<summary><h3>analyze extract-year-of-publication-from-metadata</h3></summary>
+
+Collects, for each entry, the likely year of publication based on existing metadata.
+This is meant to be used for statistical analysis purposes only.
+
+Notes:
+- Extracted from either `mods Publication Date`, `gxml Date1 ` or `gxml Date 2` (via `book.csv_data`)
+- Entries with where `gxml Date Type` is either `Continuing resource` or `No attempt to code` will be skipped.
+- Incomplete years will be ignored (e.g: `19uu`, `1uuu`, `9999` ...)
+- Skips entries that were already analyzed, unless instructed otherwise.
+
+```bash
+python pipeline.py analyze extract-year-of-publication-from-metadata
 ```
 
 </details>
