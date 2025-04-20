@@ -153,9 +153,9 @@ class BookIO(peewee.Model):
         self.__csv_data = value
 
     @property
-    def text(self) -> str:
+    def text(self) -> list[str]:
         """
-        Returns the full OCR'd text of the current book
+        Returns the full OCR'd text of the current book as a list of strings.
         """
         return self.jsonl_data["text_by_page"]
 

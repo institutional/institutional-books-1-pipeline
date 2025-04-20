@@ -99,7 +99,7 @@ def run_token_count(
     for book in BookIO.select().offset(offset).limit(limit).order_by(BookIO.barcode).iterator():
         token_count = None
         already_exists = False
-        text_by_page = book.jsonl_data["text_by_page"]
+        text_by_page = book.text
         total = 0
 
         # Check if token count already exists

@@ -70,7 +70,7 @@ def extract_page_count(
         # Prepare record
         page_count = PageCount() if not already_exists else page_count
         page_count.book = book.barcode
-        page_count.count_from_ocr = len(book.jsonl_data["text_by_page"])
+        page_count.count_from_ocr = len(book.text)
         page_count.count_from_metadata = 0
 
         try:

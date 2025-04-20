@@ -58,10 +58,10 @@ def build(
     max_workers: int,
 ):
     """
-    Prepares the pipeline:
-    - Creates database tables
-    - Downloads source files from the output of GRIN-TO-S3 that was saved on S3/R2
-    - Indexes individual records from both JSONL and CSV files so BookIO can perform random access
+    Initializes the pipeline:
+    - Creates the local database and its tables
+    - Downloads source files from the output of `grin-to-s3`, hosted on S3 or R2
+    - Indexes records within individual CSV and JSONL files so `BookIO` can perform fast random access on any barcode.
     """
     jsonl_gz_remote_filepaths = []
 
@@ -188,10 +188,6 @@ def build(
                 click.echo("Could not index contents of CSV file. Interrupting.")
                 executor.shutdown(wait=False, cancel_futures=True)
                 exit(1)
-
-    #
-    # Index Hathifiles
-    #
 
     #
     # Mark pipeline as ready

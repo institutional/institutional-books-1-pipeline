@@ -1,11 +1,14 @@
 > 🚧 Work in progress 
 
 # hlbooks-pipeline
-A pipeline for analyzing, refining and publishing a dataset from Harvard Library's Google Books collection.
+The Institutional Data Initiative's pipeline for analyzing and refining the HLBooks collection source materials in order to publish it as a dataset.  
 
-Commands are grouped as follows:
-- **setup**: Pipeline setup and corpus I/O (for example: downloading and indexing a local copy of the collection).
-- **analyze**: Analyze data already present in the collection (raw data, existing metadata). Results are stored in the database.
+**Commands are grouped as follows:**
+- **setup**: Pipeline setup and corpus I/O (for example: downloading and indexing a local copy of  the collection).
+- **analyze**: Analysis of the data present in the collection. Results are stored in the database.
+- **process**: Processing and/or augmentation of data from the collection.
+- **export**: Export of samples and stats. 
+- **publish**: Prepares the dataset for publication. 
 
 ---
 
@@ -13,15 +16,18 @@ Commands are grouped as follows:
 - [Getting started](#getting-started)
 - [Available utilities](#available-utilities)
 - [CLI: `setup`](#cli-setup)
+- [CLI: `analyze`](#cli-analyze)
+- [CLI: `process`](#cli-process)
+- [CLI: `export`](#cli-export)
+- [CLI: `publish`](#cli-publish)
 
 ---
 
 ## Getting started 
 
 **Machine-level dependencies:**
-- [Python 3.12+](https://python.org)
-- [Python Poetry](https://python-poetry.org/)
-- [Protobuf](https://github.com/protocolbuffers/protobuf) (`protobuf-compiler` on Debian/Ubuntu)
+- [Python 3.12](https://python.org)
+- [Python Poetry](https://python-poetry.org/) (recommended)
 - [SQLite 3.32.0+](https://www.sqlite.org/)
 
 ```bash
@@ -29,13 +35,14 @@ Commands are grouped as follows:
 git clone https://github.com/instdin/hlbooks-pipeline.git
 
 # Install dependencies
+# NOTE: Will attempt to install system-level dependencies on MacOS and Debian-based systems.
 bash install.sh
 
 # Edit environment variables
 nano .env # (or any text editor)
 
 # Open python environment and pull source data / build the local database
-poetry shell # or: eval $(poetry env activate)
+poetry shell # OR, for newer versions of poetry: eval $(poetry env activate)
 python pipeline.py setup build
 ```
 
@@ -45,13 +52,15 @@ python pipeline.py setup build
 
 ## Available utilities
 
-The following code excerpt presents some of the utilities this codebase makes available to work with the collection.
+The following code excerpt presents some of the utilities this codebase makes available to work with the collection. 
+
+These are fairly specific to the way raw materials are currently organized on our storage backend, generated using `grin-to-s3`, our experimental tool for extracting a collection out of Google Books' backend. 
 
 This codebase uses [Peewee as an ORM](https://docs.peewee-orm.com/en/latest/) to manage a [SQLite](https://www.sqlite.org/) database.
 
 ```python
 import utils
-from models import BookIO
+from models import BookIO, BookRawData
 
 # `BookIO` is a Peewee model for the "book_io" table.
 # See Peewee's documentation for more info on how to work with models:
@@ -59,10 +68,18 @@ from models import BookIO
 
 # Retrieving an individual book by barcode
 book = book.get(barcode="ABCDEF")
-print(book.jsonl_data) # The full JSONL data is not stored at database level, but retrieved on the fly.
-print(book.csv_data) # ... same goes for data coming from books.csv
-print(book.tarball) # .tar.gz bytes of the underlying archive for the current book (raw data, cached).
-print(book.images) # Raw scans, decompressed from .tar.gz 
+
+# Google-provided OCR text by page (list)
+text: list[str] = book.text
+
+# Metadata from xyz-books.csv (random access from disk)
+csv_data: dict = book.csv_data
+
+# Metadata and OCR text from xyz-0001.jsonl (random access fron disk)
+jsonl_data: dict = book.jsonl_data
+
+# Scans, OCR data, text exports and metadata and checksum extracted from barcode.tar.gz (pulled on the fly and cached)
+raw_data: BookRawData = book.raw_data
 
 # Iterating over the collection
 for book in Book.select().iterator():
@@ -85,10 +102,10 @@ All [models](/models/) cross-reference `BookIO` via a `book` foreign key.
 
 > ⚠️ This command must be run at least once.
 
-Prepares the pipeline:
-- Creates database tables
-- Downloads source files from the output of GRIN-TO-S3 that was saved on S3/R2
-- Indexes individual records from both JSONL and CSV files so BookIO can perform random access
+Initializes the pipeline: 
+- Creates the local database and its tables
+- Downloads source files from the output of `grin-to-s3`, hosted on S3 or R2
+- Indexes records within individual CSV and JSONL files so `BookIO` can perform fast random access on any barcode.
 
 ```bash
 python pipeline.py setup build
