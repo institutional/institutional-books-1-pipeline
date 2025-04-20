@@ -41,7 +41,7 @@ def extract_topic_classification_from_metadata(
     Collects topic/subject classification data for each book from the collection's metadata.
 
     Notes:
-    - Extracted from `gxml Subject Added Entry-Topical Term` (via `book.csv_data`)
+    - Extracted from `gxml Subject Added Entry-Topical Term` (via `book.csv_data`).
     - Skips entries that were already analyzed, unless instructed otherwise.
     """
     entries_to_create = []

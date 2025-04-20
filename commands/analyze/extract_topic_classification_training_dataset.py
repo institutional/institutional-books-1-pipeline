@@ -243,7 +243,7 @@ def extract_topic_classification_training_dataset():
     Said text classification model's goal is to assign a top-level category from the Library of Congress' Classification Outline to a given book based on its metadata.
 
     Isolates entries where:
-    - `TopicClassification.from_metadata` only contains 1 term (no comma)
+    - `TopicClassification.from_metadata` only contains 1 term (no comma).
     - Said term can be matched with one of the top-level items from the Library Of Congress Classification Outline (see `LOC_CO_TO_GXML_TOPICS`).
 
     Notes:

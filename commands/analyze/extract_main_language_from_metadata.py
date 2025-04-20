@@ -42,7 +42,7 @@ def extract_main_language_from_metadata(
     Collects book-level language data for each book from the collection's metadata.
 
     Notes:
-    - Extracted from `gxml Language` (via `book.csv_data`)
+    - Extracted from `gxml Language` (via `book.csv_data`).
     - Original data is in ISO 639-2B format. This command stores it both in this format as well as ISO 639-3.
     - Skips entries that were already analyzed, unless instructed otherwise.
     """

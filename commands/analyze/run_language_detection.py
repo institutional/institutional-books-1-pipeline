@@ -58,14 +58,17 @@ def run_language_detection(
     max_workers: int,
 ):
     """
-    Runs a language detection algorithm on the OCR'd text of books, in chunks.
+    Runs text-level language detection on the OCR'd text of each book, split into chunks.
 
     For each book:
-    - Collects the distribution and proportion of all identified languages in `language_detection`
-    - Keeps track of the "main" detected language in `main_language` (for comparison with metadata info)
+    - Collects the distribution and proportion of all identified languages in `language_detection`.
+    - Keeps track of token counts identified per language, at book level. (`o200k_base` tokens).
+    - Keeps track of the "main" detected language in `main_language` (for comparison with metadata info).
 
     Notes:
-    - Skips entries that were already analyzed, unless instructed otherwise
+    - Uses `pyfranc`.
+    - By default, texts are split and analyzed in blocks of up to 768 characters.
+    - Skips entries that were already analyzed, unless instructed otherwise.
     """
     #
     # Data dependency checks

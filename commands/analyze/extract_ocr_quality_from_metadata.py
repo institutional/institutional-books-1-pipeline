@@ -41,8 +41,8 @@ def extract_ocr_quality_from_metadata(
     Collects Google-provided OCR quality metrics for each book, as expressed in the collection's metadata.
 
     Notes:
-    - Extracted from `OCR Analysis Score` (via `book.csv_data`)
-    - Skips entries that were already analyzed, unless instructed otherwise
+    - Extracted from `OCR Analysis Score` (via `book.csv_data`).
+    - Skips entries that were already analyzed, unless instructed otherwise.
     """
     entries_to_create = []
     entries_to_update = []

@@ -44,9 +44,9 @@ def extract_year_of_publication_from_metadata(
     This is meant to be used for statistical analysis purposes only.
 
     Notes:
-    - Extracted from either `mods Publication Date`, `gxml Date1 ` or `gxml Date 2` (via `book.csv_data`)
+    - Extracted from either `mods Publication Date`, `gxml Date1 ` or `gxml Date 2` (via `book.csv_data`).
     - Entries with where `gxml Date Type` is either `Continuing resource` or `No attempt to code` will be skipped.
-    - Incomplete years will be ignored (e.g: `19uu`, `1uuu`, `9999` ...)
+    - Incomplete years will be ignored (e.g: `19uu`, `1uuu`, `9999` ...).
     - Skips entries that were already analyzed, unless instructed otherwise.
     """
     entries_to_create = []
