@@ -1,6 +1,6 @@
 > 🚧 Work in progress 
 
-# hlbooks-pipeline
+# 📚 hlbooks-pipeline
 The Institutional Data Initiative's pipeline for analyzing and refining the HLBooks collection source materials in order to publish it as a dataset.  
 
 **Commands are grouped as follows:**
@@ -400,6 +400,27 @@ python pipeline.py analyze run-topic-classification --device # Allows for specif
 ```
 
 </details>
+
+[👆 Back to the summary](#summary)
+
+---
+
+## CLI: process 
+
+
+[👆 Back to the summary](#summary)
+
+---
+
+## CLI: export 
+
+
+[👆 Back to the summary](#summary)
+
+---
+
+## CLI: publish 
+
 
 [👆 Back to the summary](#summary)
 
