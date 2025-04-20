@@ -38,7 +38,7 @@ def extract_genre_classification_from_metadata(
     db_write_batch_size: int,
 ):
     """
-    Parses and stores genre or form classification data available in the collection's metadata for each book.
+    Collects genre or form classification data for each book from the collection's metadata.
 
     Notes:
     - Extracted from `gxml Index Term-Genre/Form` (via `book.csv_data`)

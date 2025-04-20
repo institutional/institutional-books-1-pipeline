@@ -39,7 +39,7 @@ def extract_main_language_from_metadata(
     db_write_batch_size: int,
 ):
     """
-    Parses and stores book-level language classification data available in the collection's metadata for each book.
+    Collects book-level language data for each book from the collection's metadata.
 
     Notes:
     - Extracted from `gxml Language` (via `book.csv_data`)

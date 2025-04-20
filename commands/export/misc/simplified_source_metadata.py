@@ -4,7 +4,7 @@ import csv
 import click
 
 import utils
-from const import OUTPUT_EXPORT_DIR_PATH, DATETIME_SLUG
+from const import OUTPUT_EXPORT_DIR_PATH, DATETIME_SLUG, HATHITRUST_COLLECTION_PREFIX
 from models import BookIO, HathitrustRightsDetermination
 
 FIELDS_TO_EXPORT = [
@@ -109,7 +109,7 @@ def simplified_source_metadata(pd_only: bool):
             csv_data = book.csv_data
 
             csv_data["Hathitrust Link"] = (
-                f"https://babel.hathitrust.org/cgi/pt?id=hvd.{book.barcode.lower()}"
+                f"https://babel.hathitrust.org/cgi/pt?id={HATHITRUST_COLLECTION_PREFIX}.{book.barcode.lower()}"
             )
 
             for field in FIELDS_TO_EXPORT:

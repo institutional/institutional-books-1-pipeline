@@ -38,12 +38,12 @@ def extract_page_count(
     db_write_batch_size: int,
 ):
     """
-    Extracts the page count of each book:
-    - As expressed in the collection's metadata
-    - From the total of available pages in the OCR'd text
+    Extracts the page count of each book, both:
+    - as expressed in the collection's metadata (`Page Count` via `book.csv_data`)
+    - from the total of available pages in the OCR'd text
 
     Notes:
-    - Skips texts that were already analyzed, unless instructed otherwise
+    - Skips entries that were already analyzed, unless instructed otherwise
     """
     entries_to_create = []
     entries_to_update = []

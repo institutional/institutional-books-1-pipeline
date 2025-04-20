@@ -112,3 +112,6 @@ TABLES = {
 
 DEFAULT_SIMHASH_SHINGLE_WIDTH = 7
 """ Default size of Simhash shingles. """
+
+HATHITRUST_COLLECTION_PREFIX = "hvd"
+""" Collection prefix for this Google Books collection on Hathitrust. Used to match records."""

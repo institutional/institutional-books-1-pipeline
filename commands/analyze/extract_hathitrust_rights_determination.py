@@ -12,6 +12,7 @@ from utils import (
     process_db_write_batch,
 )
 from models import BookIO, HathitrustRightsDetermination
+from const import HATHITRUST_COLLECTION_PREFIX
 
 
 @click.command("extract-hathitrust-rights-determination")
@@ -48,8 +49,7 @@ def extract_hathitrust_rights_determination(
     max_workers: int,
 ):
     """
-    Attempts to match Harvard Library's Google Books records with Hathitrust's rights determination records.
-    Stores the resulting matches in the database.
+    Collects rights determination data from the Hathitrust API for this collection.
 
     Notes:
     - `--max-workers` defaults to 4.
@@ -117,7 +117,7 @@ def process_batch(items: list[BookIO], overwrite=False) -> bool:
         item = None
         already_exists = False
 
-        htid = f"hvd.{book.barcode.lower()}"
+        htid = f"{HATHITRUST_COLLECTION_PREFIX}.{book.barcode.lower()}"
         ht_data = None
         url = f"https://catalog.hathitrust.org/api/volumes/full/htid/{htid}.json"
 

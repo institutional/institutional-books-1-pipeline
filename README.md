@@ -163,7 +163,7 @@ python pipeline.py setup clear
 <details>
 <summary><h3>analyze extract-genre-classification-from-metadata</h3></summary>
 
-Parses and stores genre or form classification data available in the collection's metadata for each book.
+Collects genre or form classification data for each book from the collection's metadata.
 
 Notes:
 - Extracted from `gxml Index Term-Genre/Form` (via `book.csv_data`)
@@ -178,8 +178,7 @@ python pipeline.py analyze extract-genre-classification-from-metadata
 <details>
 <summary><h3>analyze extract-hathitrust-rights-determination</h3></summary>
 
-Attempts to match Harvard Library's Google Books records with [Hathitrust's rights determination records](https://www.hathitrust.org/member-libraries/resources-for-librarians/data-resources/bibliographic-api/).
-Stores the resulting matches in the database.
+Collects rights determination data from the [Hathitrust API](https://www.hathitrust.org/member-libraries/resources-for-librarians/data-resources/bibliographic-api/) for this collection.
 
 Notes:
 - `--max-workers` defaults to 4.
@@ -194,7 +193,7 @@ python pipeline.py analyze extract-hathitrust-rights-determination
 <details>
 <summary><h3>analyze extract-main-language-from-metadata</h3></summary>
 
-Parses and stores book-level language classification data available in the collection's metadata for each book.
+Collects book-level language data for each book from the collection's metadata.
 
 Notes:
 - Extracted from `gxml Language` (via `book.csv_data`)
@@ -203,6 +202,37 @@ Notes:
 
 ```bash
 python pipeline.py analyze extract-main-language-from-metadata
+```
+
+</details>
+
+<details>
+<summary><h3>analyze extract-ocr-quality-from-metadata</h3></summary>
+
+Collects Google-provided OCR quality metrics for each book, as expressed in the collection's metadata.
+
+Notes:
+- Extracted from `OCR Analysis Score` (via `book.csv_data`)
+- Skips entries that were already analyzed, unless instructed otherwise
+
+```bash
+python pipeline.py analyze extract-ocr-quality-from-metadata
+```
+
+</details>
+
+<details>
+<summary><h3>analyze extract-page-count</h3></summary>
+
+Extracts the page count of each book, both:
+- as expressed in the collection's metadata (`Page Count` via `book.csv_data`)
+- from the total of available pages in the OCR'd text
+
+Notes:
+- Skips entries that were already analyzed, unless instructed otherwise
+
+```bash
+python pipeline.py analyze extract-page-count
 ```
 
 </details>
