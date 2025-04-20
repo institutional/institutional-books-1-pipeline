@@ -243,8 +243,8 @@ def main_language_stats(writer: csv.writer):
         writer,
         "Total unique main languages from metadata",
         (
-            MainLanguage.select(MainLanguage.from_metadata_iso693_2b)
-            .where(MainLanguage.from_metadata_iso693_2b.is_null(False))
+            MainLanguage.select(MainLanguage.from_metadata_iso639_2b)
+            .where(MainLanguage.from_metadata_iso639_2b.is_null(False))
             .distinct()
             .count()
         ),
@@ -254,8 +254,8 @@ def main_language_stats(writer: csv.writer):
         writer,
         "Total unique main languages from detection",
         (
-            MainLanguage.select(MainLanguage.from_detection_iso693_3)
-            .where(MainLanguage.from_detection_iso693_3.is_null(False))
+            MainLanguage.select(MainLanguage.from_detection_iso639_3)
+            .where(MainLanguage.from_detection_iso639_3.is_null(False))
             .distinct()
             .count()
         ),
@@ -267,7 +267,7 @@ def main_language_stats(writer: csv.writer):
         (
             MainLanguage.select()
             .where(
-                MainLanguage.from_metadata_iso693_2b.is_null(True),
+                MainLanguage.from_metadata_iso639_2b.is_null(True),
             )
             .count()
         ),
@@ -279,7 +279,7 @@ def main_language_stats(writer: csv.writer):
         (
             MainLanguage.select()
             .where(
-                MainLanguage.from_detection_iso693_3.is_null(True),
+                MainLanguage.from_detection_iso639_3.is_null(True),
             )
             .count()
         ),
@@ -292,21 +292,21 @@ def main_language_stats(writer: csv.writer):
 
     for item in (
         MainLanguage.select(
-            MainLanguage.from_metadata_iso693_3,
-            fn.COUNT(MainLanguage.from_metadata_iso693_3).alias("total"),
+            MainLanguage.from_metadata_iso639_3,
+            fn.COUNT(MainLanguage.from_metadata_iso639_3).alias("total"),
         )
-        .where(MainLanguage.from_metadata_iso693_3.is_null(False))
-        .group_by(MainLanguage.from_metadata_iso693_3)
-        .order_by(MainLanguage.from_metadata_iso693_3)
+        .where(MainLanguage.from_metadata_iso639_3.is_null(False))
+        .group_by(MainLanguage.from_metadata_iso639_3)
+        .order_by(MainLanguage.from_metadata_iso639_3)
     ):
-        if not item.from_metadata_iso693_3.strip():
+        if not item.from_metadata_iso639_3.strip():
             continue
 
         insert_row(
             writer,
-            f"Total {item.from_metadata_iso693_3} books",
+            f"Total {item.from_metadata_iso639_3} books",
             item.total,
-            item.from_metadata_iso693_3,
+            item.from_metadata_iso639_3,
         )
 
     #
@@ -316,21 +316,21 @@ def main_language_stats(writer: csv.writer):
 
     for item in (
         MainLanguage.select(
-            MainLanguage.from_detection_iso693_3,
-            fn.COUNT(MainLanguage.from_detection_iso693_3).alias("total"),
+            MainLanguage.from_detection_iso639_3,
+            fn.COUNT(MainLanguage.from_detection_iso639_3).alias("total"),
         )
-        .where(MainLanguage.from_detection_iso693_3.is_null(False))
-        .group_by(MainLanguage.from_detection_iso693_3)
-        .order_by(MainLanguage.from_detection_iso693_3)
+        .where(MainLanguage.from_detection_iso639_3.is_null(False))
+        .group_by(MainLanguage.from_detection_iso639_3)
+        .order_by(MainLanguage.from_detection_iso639_3)
     ):
-        if not item.from_detection_iso693_3.strip():
+        if not item.from_detection_iso639_3.strip():
             continue
 
         insert_row(
             writer,
-            f"Total {item.from_detection_iso693_3} books",
+            f"Total {item.from_detection_iso639_3} books",
             item.total,
-            item.from_detection_iso693_3,
+            item.from_detection_iso639_3,
         )
 
 
@@ -614,9 +614,9 @@ def language_detection_stats(writer: csv.writer):
         writer,
         f"Total unique languages detected at text level (> 1000 tokens)",
         (
-            LanguageDetection.select(LanguageDetection.iso693_3)
+            LanguageDetection.select(LanguageDetection.iso639_3)
             .where(
-                LanguageDetection.iso693_3.is_null(False),
+                LanguageDetection.iso639_3.is_null(False),
                 LanguageDetection.token_count > 1000,
             )
             .distinct()
@@ -634,21 +634,21 @@ def language_detection_stats(writer: csv.writer):
 
     for lang in (
         LanguageDetection.select(
-            LanguageDetection.iso693_3,
+            LanguageDetection.iso639_3,
             fn.SUM(LanguageDetection.token_count).alias("total_tokens"),
         )
         .where(
-            LanguageDetection.iso693_3.is_null(False),
+            LanguageDetection.iso639_3.is_null(False),
             LanguageDetection.token_count > 1000,
         )
-        .group_by(LanguageDetection.iso693_3)
-        .order_by(LanguageDetection.iso693_3)
+        .group_by(LanguageDetection.iso639_3)
+        .order_by(LanguageDetection.iso639_3)
     ):
         insert_row(
             writer,
-            f"Total detected tokens for {lang.iso693_3} (anything > 1000)",
+            f"Total detected tokens for {lang.iso639_3} (anything > 1000)",
             lang.total_tokens,
-            lang.iso693_3,
+            lang.iso639_3,
         )
 
 

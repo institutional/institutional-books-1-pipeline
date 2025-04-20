@@ -68,7 +68,7 @@ def run_text_analysis(
         assert BookIO.select().count() == MainLanguage.select().count()
 
         count = (
-            MainLanguage.select().where(MainLanguage.from_detection_iso693_3.is_null(False)).count()
+            MainLanguage.select().where(MainLanguage.from_detection_iso639_3.is_null(False)).count()
         )
         assert count
     except:
@@ -167,7 +167,7 @@ def process_books_batch(books: list[BookIO], overwrite: bool = False) -> tuple:
 
             # ... from detection if available
             try:
-                language_code = book.mainlanguage_set[0].from_detection_iso693_3
+                language_code = book.mainlanguage_set[0].from_detection_iso639_3
                 language_code = iso639.Lang(pt3=language_code).pt1
                 assert language_code
             except:
@@ -176,7 +176,7 @@ def process_books_batch(books: list[BookIO], overwrite: bool = False) -> tuple:
             # ... from metadata otherwise, default to "en" if none is available
             try:
                 assert language_code is None
-                language_code = book.mainlanguage_set[0].from_metadata_iso693_2b
+                language_code = book.mainlanguage_set[0].from_metadata_iso639_2b
                 language_code = iso639.Lang(pt2b=language_code).pt1
                 assert language_code
             except:

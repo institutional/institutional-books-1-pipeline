@@ -39,17 +39,19 @@ def extract_main_language_from_metadata(
     db_write_batch_size: int,
 ):
     """
-    Collects the main language of each book as expressed in the collection's metadata.
+    Parses and stores book-level language classification data available in the collection's metadata for each book.
 
     Notes:
+    - Extracted from `gxml Language` (via `book.csv_data`)
+    - Original data is in ISO 639-2B format. This command stores it both in this format as well as ISO 639-3.
     - Skips entries that were already analyzed, unless instructed otherwise.
     """
     entries_to_create = []
     entries_to_update = []
 
     fields_to_update = [
-        MainLanguage.from_metadata_iso693_2b,
-        MainLanguage.from_metadata_iso693_3,
+        MainLanguage.from_metadata_iso639_2b,
+        MainLanguage.from_metadata_iso639_3,
         MainLanguage.metadata_source,
     ]
 
@@ -78,8 +80,8 @@ def extract_main_language_from_metadata(
 
         try:
             gxml_language = iso639.Lang(pt2b=book.csv_data["gxml Language"])
-            main_language.from_metadata_iso693_2b = gxml_language.pt2b
-            main_language.from_metadata_iso693_3 = gxml_language.pt3
+            main_language.from_metadata_iso639_2b = gxml_language.pt2b
+            main_language.from_metadata_iso639_3 = gxml_language.pt3
             click.echo(f"🧮 #{book.barcode} = {gxml_language.pt3} (metadata)")
         except Exception:
             click.echo(f"🧮 #{book.barcode} - no valid language info.")

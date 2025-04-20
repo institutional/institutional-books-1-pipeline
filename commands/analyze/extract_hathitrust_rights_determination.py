@@ -37,7 +37,7 @@ from models import BookIO, HathitrustRightsDetermination
     "--max-workers",
     type=int,
     required=False,
-    default=8,
+    default=4,
     help="Determines how many subprocesses can be run in parallel. Be mindful of Hathitrust's resources!",
 )
 @needs_pipeline_ready
@@ -48,9 +48,11 @@ def extract_hathitrust_rights_determination(
     max_workers: int,
 ):
     """
-    Attempts to match Harvard Library's Google Books records with Hathitrust's Rights Determination records.
+    Attempts to match Harvard Library's Google Books records with Hathitrust's rights determination records.
+    Stores the resulting matches in the database.
 
     Notes:
+    - `--max-workers` defaults to 4.
     - Skips entries that were already analyzed, unless instructed otherwise.
     """
     # Create batches of books to process

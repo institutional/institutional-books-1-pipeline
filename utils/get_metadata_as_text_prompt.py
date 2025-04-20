@@ -52,7 +52,7 @@ def get_metadata_as_text_prompt(
 
     # Language
     try:
-        main_language = book.mainlanguage_set[0].from_detection_iso693_3
+        main_language = book.mainlanguage_set[0].from_detection_iso639_3
         assert main_language
 
         main_language = iso639.Lang(pt3=main_language).name

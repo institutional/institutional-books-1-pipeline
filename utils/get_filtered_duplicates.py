@@ -31,7 +31,7 @@ def get_filtered_duplicates(max_workers: int = multiprocessing.cpu_count()) -> d
 
     try:
         count = (
-            MainLanguage.select().where(MainLanguage.from_detection_iso693_3.is_null(False)).count()
+            MainLanguage.select().where(MainLanguage.from_detection_iso639_3.is_null(False)).count()
         )
         assert count
     except:
@@ -117,7 +117,7 @@ def __filter_by_detected_language(books: list) -> list:
         lang = "und"
 
         if book.mainlanguage_set:
-            lang = book.mainlanguage_set[0].from_detection_iso693_3
+            lang = book.mainlanguage_set[0].from_detection_iso639_3
 
         if books_by_language.get(lang, None) is None:
             books_by_language[lang] = []

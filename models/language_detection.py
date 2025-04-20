@@ -22,14 +22,14 @@ class LanguageDetection(peewee.Model):
         index=True,
     )
 
-    iso693_2b = peewee.CharField(
+    iso639_2b = peewee.CharField(
         max_length=3,
         null=True,
         unique=False,
         index=True,
     )
 
-    iso693_3 = peewee.CharField(
+    iso639_3 = peewee.CharField(
         max_length=3,
         null=True,
         unique=False,

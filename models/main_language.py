@@ -21,14 +21,14 @@ class MainLanguage(peewee.Model):
         primary_key=True,
     )
 
-    from_metadata_iso693_2b = peewee.CharField(
+    from_metadata_iso639_2b = peewee.CharField(
         max_length=3,
         null=True,
         unique=False,
         index=True,
     )
 
-    from_metadata_iso693_3 = peewee.CharField(
+    from_metadata_iso639_3 = peewee.CharField(
         max_length=3,
         null=True,
         unique=False,
@@ -42,14 +42,14 @@ class MainLanguage(peewee.Model):
         index=True,
     )
 
-    from_detection_iso693_2b = peewee.CharField(
+    from_detection_iso639_2b = peewee.CharField(
         max_length=3,
         null=True,
         unique=False,
         index=True,
     )
 
-    from_detection_iso693_3 = peewee.CharField(
+    from_detection_iso639_3 = peewee.CharField(
         max_length=3,
         null=True,
         unique=False,

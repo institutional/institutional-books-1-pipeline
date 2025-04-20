@@ -202,8 +202,8 @@ def process_book(
         # Update MainLanguage record with first record (most commonly detected language)
         if i == 0 and lang != "und":
             main_language = MainLanguage.get(book=book.barcode)
-            main_language.from_detection_iso693_2b = iso639.Lang(pt3=lang).pt2b
-            main_language.from_detection_iso693_3 = lang
+            main_language.from_detection_iso639_2b = iso639.Lang(pt3=lang).pt2b
+            main_language.from_detection_iso639_3 = lang
             main_language.detection_source = "pyfranc"
             main_language.save()
 
@@ -211,8 +211,8 @@ def process_book(
         entries_to_create.append(
             LanguageDetection(
                 book=book.barcode,
-                iso693_2b=iso639.Lang(pt3=lang).pt2b,
-                iso693_3=lang,
+                iso639_2b=iso639.Lang(pt3=lang).pt2b,
+                iso639_3=lang,
                 token_count=token_count,
                 tokenizer=TOKENIZER_NAME,
                 percentage_of_total=token_count / total_token_count * 100,

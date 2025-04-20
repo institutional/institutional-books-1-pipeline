@@ -99,7 +99,7 @@ def step01_extract_layout_data(
         assert BookIO.select().count() == MainLanguage.select().count()
 
         count = (
-            MainLanguage.select().where(MainLanguage.from_detection_iso693_3.is_null(False)).count()
+            MainLanguage.select().where(MainLanguage.from_detection_iso639_3.is_null(False)).count()
         )
         assert count
     except:
@@ -181,7 +181,7 @@ def process_book(book: BookIO, overwrite: bool) -> bool:
 
     if (
         should_skip is False
-        and book.mainlanguage_set[0].from_detection_iso693_3 not in target_languages
+        and book.mainlanguage_set[0].from_detection_iso639_3 not in target_languages
     ):
         should_skip = True
 
