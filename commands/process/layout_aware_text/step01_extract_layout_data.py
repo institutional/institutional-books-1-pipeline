@@ -82,7 +82,7 @@ def step01_extract_layout_data(
     Focuses on capturing word-level bboxes and detecting layout separators (lines separating columns and sometimes sections).
 
     Notes:
-    - LayoutData entries are stored on disc under `OUTPUT_MISC_DIR_PATH`.
+    - `LayoutData` entries are stored on disc under `OUTPUT_MISC_DIR_PATH`.
     - Skips entries that were already processed, unless instructed otherwise.
     - All dimensions / bboxes are shrunk by 4 for easier and faster processing.
     """
