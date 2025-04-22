@@ -90,10 +90,11 @@ def process_book(book: BookIO) -> bool:
     """
     # Check if there is a layout data file available for this book
     if not LayoutData.exists(barcode=book.barcode):
+        click.echo(f"⏭️ #{book.barcode} does not have layout data available. Skipping.")
         return False
 
     processing_start = datetime.now()
-
+    processing_end = None
     layout_data = LayoutData.get(barcode=book.barcode)
     total_complex = 0
     total_simple = 0

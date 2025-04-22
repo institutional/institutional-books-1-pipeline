@@ -248,3 +248,30 @@ class LayoutData:
 
         self._blocks_by_page = pages
         return self._blocks_by_page
+
+
+def merge_ocrchunks(
+    chunks_to_merge: list[OCRChunk],
+    new_type: OCRChunkType = OCRChunkType.SPAN,
+) -> OCRChunk:
+    """
+    Merges a list of OCRChunk objects.
+    """
+    x_min = min(chunk.x_min for chunk in chunks_to_merge)
+    y_min = min(chunk.y_min for chunk in chunks_to_merge)
+    x_max = max(chunk.x_max for chunk in chunks_to_merge)
+    y_max = max(chunk.y_max for chunk in chunks_to_merge)
+
+    text = "".join(chunk.text for chunk in chunks_to_merge)
+
+    confidence = int(sum(chunk.confidence for chunk in chunks_to_merge) / len(chunks_to_merge))
+
+    return OCRChunk(
+        x_min=x_min,
+        y_min=y_min,
+        x_max=x_max,
+        y_max=y_max,
+        text=text,
+        confidence=confidence,
+        type=new_type,
+    )
