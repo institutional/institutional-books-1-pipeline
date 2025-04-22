@@ -249,6 +249,15 @@ class LayoutData:
         self._blocks_by_page = pages
         return self._blocks_by_page
 
+    @property
+    def spans_sorted(self) -> bool:
+        return self._spans_sorted
+
+    @spans_sorted.setter
+    def spans_sorted(self, value: bool) -> bool:
+        self._spans_sorted = bool(value)
+        return self._spans_sorted
+
 
 def merge_ocrchunks(
     chunks_to_merge: list[OCRChunk],

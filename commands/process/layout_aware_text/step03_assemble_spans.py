@@ -1,3 +1,5 @@
+# TODO: Account for undetected separators
+# TODO: Alternative merging algorithm based on sentence detection?
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import traceback
