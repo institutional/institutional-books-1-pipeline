@@ -273,6 +273,9 @@ def merge_ocrchunks(
 
     text = "".join(chunk.text for chunk in chunks_to_merge)
 
+    if new_type == OCRChunkType.SPAN and text[-1] != " ":
+        text += " "
+
     confidence = int(sum(chunk.confidence for chunk in chunks_to_merge) / len(chunks_to_merge))
 
     return OCRChunk(
