@@ -99,7 +99,11 @@ class LayoutData:
         Checks if the underlying file for the storage of a given barcode exists.
         """
         path = LayoutData.get_filepath(barcode)
-        return path.exists()
+
+        if not path.exists():
+            return False
+
+        return path.stat().st_size > 0
 
     @classmethod
     def delete(cls, barcode) -> bool:
