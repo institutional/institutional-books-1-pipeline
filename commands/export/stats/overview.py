@@ -198,7 +198,7 @@ def page_count_stats(writer: csv.writer):
     )
 
     #
-    # Token count distribution
+    # Page count distribution
     #
     insert_section(writer, "PAGE COUNT DISTRIBUTION")
 

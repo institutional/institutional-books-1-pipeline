@@ -12,7 +12,7 @@ from const import OUTPUT_EXPORT_DIR_PATH, DATETIME_SLUG
 @utils.needs_pipeline_ready
 def topic_classification_training_dataset():
     """
-    Exports the topic classification training dataset as a series of CSVs.
+    Exports the topic classification training dataset prepared via `analyze extract-topic-classification-training-dataset` as a series of CSVs.
 
     Current setup: text classification fine-tunning
     https://huggingface.co/docs/autotrain/en/text_classification

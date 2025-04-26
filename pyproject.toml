@@ -41,6 +41,7 @@ torch = "^2.6.0"
 torchvision = "^0.21.0"
 transformers = "^4.49.0"
 pandas = "^2.2.3"
+model2vec = {extras = ["train"], version = "^0.4.1"}
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"

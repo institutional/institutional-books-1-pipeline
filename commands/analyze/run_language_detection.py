@@ -71,7 +71,7 @@ def run_language_detection(
     - Skips entries that were already analyzed, unless instructed otherwise.
     """
     #
-    # Data dependency checks
+    # Data dependencies checks
     #
     try:
         assert BookIO.select().count() == MainLanguage.select().count()
@@ -127,7 +127,7 @@ def process_book(
         click.echo(f"⏭️ #{book.barcode} does not have text.")
         return True
 
-    # Stop here if ovewrite is `False` and we've laready processed this record
+    # Stop here if overwrite is `False` and we've laready processed this record
     if (
         not overwrite
         and LanguageDetection.select().where(LanguageDetection.book == book.barcode).count()

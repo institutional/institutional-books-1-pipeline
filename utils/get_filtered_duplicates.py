@@ -1,4 +1,3 @@
-import traceback
 import multiprocessing
 from statistics import median
 from concurrent.futures import ProcessPoolExecutor, as_completed

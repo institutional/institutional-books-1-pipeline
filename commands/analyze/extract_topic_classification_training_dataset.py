@@ -267,7 +267,7 @@ def extract_topic_classification_training_dataset():
 
     # Delete existing set
     if TopicClassificationTrainingDataset.select().count():
-        TopicClassificationTrainingDataset.delete().where().execute()
+        TopicClassificationTrainingDataset.delete().execute()
 
     #
     # Filter elements where topic can be matched with an item from LOC CO's 1st level.

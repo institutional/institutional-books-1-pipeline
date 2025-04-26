@@ -42,7 +42,7 @@ def run_ocr_quality_detection(
     - Skips entries that were already analyzed, unless instructed otherwise
     """
     #
-    # Data dependency checks
+    # Data dependencies checks
     #
     try:
         assert BookIO.select().count() == OCRQuality.select().count()

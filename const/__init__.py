@@ -40,6 +40,9 @@ OUTPUT_DATABASE_FILENAME = "database.db"
 OUTPUT_EXPORT_DIR_PATH = Path(OUTPUT_DIR_PATH, "export")
 """ Data output directory: export folder. """
 
+OUTPUT_MODELS_DIR_PATH = Path(OUTPUT_DIR_PATH, "models")
+""" Data output directory: local models. """
+
 OUTPUT_MISC_DIR_PATH = Path(OUTPUT_DIR_PATH, "misc")
 """ Data output directory: misc folder. Can be used for temporary files. """
 
@@ -107,6 +110,7 @@ TABLES = {
     "text_analysis": "TextAnalysis",
     "topic_classification_training_dataset": "TopicClassificationTrainingDataset",
     "hathitrust_rights_determination": "HathitrustRightsDetermination",
+    "ocr_postprocessing_training_dataset": "OCRPostprocessingTrainingDataset",
 }
 """ Mapping: Table names to Model class name. """
 

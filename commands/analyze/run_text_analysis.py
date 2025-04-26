@@ -62,7 +62,7 @@ def run_text_analysis(
     - Skips entries that were already analyzed, unless instructed otherwise
     """
     #
-    # Data dependency checks
+    # Data dependencies checks
     #
 
     # Language detection data

@@ -85,11 +85,7 @@ def extract_hathitrust_rights_determination(
                 future.result()
             except Exception:
                 click.echo(traceback.format_exc())
-
-                click.echo(
-                    "Could not pull rights determination data from Hathitrust. Interrupting."
-                )
-
+                click.echo("Couldn't pull rights determination data from Hathitrust. Interrupting.")
                 executor.shutdown(wait=False, cancel_futures=True)
                 exit(1)
 
