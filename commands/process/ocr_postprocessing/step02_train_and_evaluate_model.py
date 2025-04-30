@@ -18,7 +18,7 @@ from const import DATETIME_SLUG, OUTPUT_MODELS_DIR_PATH
     type=str,
     required=False,
     default="sentence-transformers/LaBSE",
-    help="Name of the text-similarity model to distill and fine-tune with Model2Vec.",
+    help="Name of the text similarity model to distill and fine-tune with Model2Vec.",
 )
 @utils.needs_pipeline_ready
 def step02_train_and_evaluate_model(source_model_name: str):
@@ -50,15 +50,15 @@ def step02_train_and_evaluate_model(source_model_name: str):
         .iterator()
     ):
 
-        inference_repr = entry.get_training_repr()
+        training_repr = entry.get_training_repr()
         target_type = TARGET_TYPES.index(entry.target_type)
 
         if entry.set == "train":
-            train_split_texts.append(inference_repr)
+            train_split_texts.append(training_repr)
             train_split_labels.append(target_type)
 
         if entry.set == "test":
-            test_split_texts.append(inference_repr)
+            test_split_texts.append(training_repr)
             test_split_labels.append(target_type)
 
     click.echo(f"- Train split: {len(train_split_texts)} entries.")

@@ -101,13 +101,13 @@ class OCRPostprocessingTrainingDataset(peewee.Model):
         return f"{prefix} {self.text}"
 
     @classmethod
-    def get_chunks_from_page(cls, book: BookIO, page: int) -> list:
+    def get_chunks_from_page(cls, book: BookIO, page_index: int) -> list:
         """
         Splits the text of a page into a list of (unsaved and untyped) OCR chunks as OCRPostprocessingTrainingDataset objects.
         Simple line-by-line split (matches the collection's formatting).
         """
         assert isinstance(book, BookIO)
-        text = book.text[page]
+        text = book.text[page_index]
 
         output = []
         lines = text.split("\n")
@@ -115,7 +115,7 @@ class OCRPostprocessingTrainingDataset(peewee.Model):
         for i, text_chunk in enumerate(lines):
             item = OCRPostprocessingTrainingDataset()
             item.book = book.barcode
-            item.page_number = page + 1
+            item.page_number = page_index + 1
 
             if book.pagecount_set:
                 item.total_pages = book.pagecount_set[0].count_from_ocr
@@ -128,5 +128,27 @@ class OCRPostprocessingTrainingDataset(peewee.Model):
             item.text = text_chunk
 
             output.append(item)
+
+        return output
+
+    @classmethod
+    def get_chunks_from_book(cls, book: BookIO) -> list[list]:
+        """
+        Wrapper around get_chunks_from_page().
+        Processes the entire book, returns lists of OCR chunks indexed by page.
+        """
+        assert isinstance(book, BookIO)
+
+        total_pages = 0
+        output = []
+
+        if book.pagecount_set:
+            total_pages = book.pagecount_set[0].count_from_ocr
+        else:
+            total_pages = book.csv_data["Page Count"]
+
+        for page_index in range(0, total_pages):
+            chunks = cls.get_chunks_from_page(book, page_index)
+            output.append(chunks)
 
         return output

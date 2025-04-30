@@ -58,7 +58,7 @@ Carefully analyse the information you are given to accurately determine the type
     "--pd-only",
     is_flag=True,
     default=True,
-    help="If set, only exports records flagged as PD / PDUS / CC-ZERO by Hathitrust.",
+    help="If set, only processes records flagged as PD / PDUS / CC-ZERO by Hathitrust.",
 )
 @click.option(
     "--languages",
@@ -87,7 +87,7 @@ def step01_generate_training_dataset(
     Generating a training dataset.
 
     This command uses at text-generation model to label line-level OCR chunks.
-    This data can then be used to be used to train a (coarse) classification model.
+    This data can then be used to train a (coarse) classification model.
 
     TODO: Multi GPU support.
     """
@@ -196,10 +196,10 @@ def step01_generate_training_dataset(
     #
     for book in books:
         total_pages = book.pagecount_set[0].count_from_ocr
-        page = random.randint(0, total_pages - 1)
+        page_index = random.randint(0, total_pages - 1)
 
         # Get OCR chunks
-        chunks = OCRPostprocessingTrainingDataset.get_chunks_from_page(book, page)
+        chunks = OCRPostprocessingTrainingDataset.get_chunks_from_page(book, page_index)
 
         # Determine which set these chunks belong to, based on respective caps
         set = None
@@ -347,15 +347,9 @@ def assign_ocr_chunk_type(
         model=TARGET_MODEL,
         messages=[
             {"role": "system", "content": prompt},
-            {
-                "role": "user",
-                "content": get_auto_annotation_repr(current, previous, next),
-            },
+            {"role": "user", "content": get_auto_annotation_repr(current, previous, next)},
         ],
-        options={
-            "temperature": 0,
-            "num_predict": 25,
-        },
+        options={"temperature": 0, "num_predict": 25},
     )
 
     # Grab target type, check if its valid
