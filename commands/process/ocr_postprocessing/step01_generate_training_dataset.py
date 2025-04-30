@@ -313,8 +313,8 @@ def assign_ocr_chunk_type(
     target_type = ""
 
     # Remove RUNNING_HEAD from prompt if:
-    # - We're past line 5
     # - In the first 5 pages
+    # - We're past line 5
     # - In the last 5% of the book
     if (
         current.page_number < 5
