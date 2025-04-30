@@ -144,6 +144,9 @@ def step01_generate_training_dataset(
     #
     # Delete existing set
     #
+    if not click.confirm("This will delete the existing training set. Continue?"):
+        exit(0)
+
     if OCRPostprocessingTrainingDataset.select().count():
         OCRPostprocessingTrainingDataset.delete().execute()
 

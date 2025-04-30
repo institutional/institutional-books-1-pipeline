@@ -12,6 +12,7 @@ from const import (
     OUTPUT_EXPORT_DIR_PATH,
     OUTPUT_MODELS_DIR_PATH,
     OUTPUT_MISC_DIR_PATH,
+    OUTPUT_OCR_POSTPROCESSING_DIR_PATH,
 )
 
 
@@ -34,3 +35,4 @@ def make_dirs() -> None:
     os.makedirs(OUTPUT_EXPORT_DIR_PATH, exist_ok=True)
     os.makedirs(OUTPUT_MODELS_DIR_PATH, exist_ok=True)
     os.makedirs(OUTPUT_MISC_DIR_PATH, exist_ok=True)
+    os.makedirs(OUTPUT_OCR_POSTPROCESSING_DIR_PATH, exist_ok=True)

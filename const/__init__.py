@@ -46,6 +46,9 @@ OUTPUT_MODELS_DIR_PATH = Path(OUTPUT_DIR_PATH, "models")
 OUTPUT_MISC_DIR_PATH = Path(OUTPUT_DIR_PATH, "misc")
 """ Data output directory: misc folder. Can be used for temporary files. """
 
+OUTPUT_OCR_POSTPROCESSING_DIR_PATH = Path(OUTPUT_DIR_PATH, "ocr-postprocessing")
+""" Data output directory: OCR postprocessing files. """
+
 #
 # Pipeline ready check
 #

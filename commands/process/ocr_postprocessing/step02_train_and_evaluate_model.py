@@ -80,7 +80,7 @@ def step02_train_and_evaluate_model(source_model_name: str):
         train_split_texts,
         train_split_labels,
         learning_rate=0.0015,
-        max_epochs=4,
+        max_epochs=3,
     )
     # learning_rate=0.0015, max_epochs=3
 

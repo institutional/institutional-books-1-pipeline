@@ -1,10 +1,10 @@
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import traceback
-import random
-import os
 import re
 from pathlib import Path
 import pickle
+from datetime import datetime
+import json
 
 import click
 import peewee
@@ -21,7 +21,10 @@ from models import (
     PageCount,
 )
 from models.ocr_postprocessing_training_dataset import TARGET_TYPES
-from const import OUTPUT_MODELS_DIR_PATH, DATETIME_SLUG
+from const import OUTPUT_MODELS_DIR_PATH, OUTPUT_OCR_POSTPROCESSING_DIR_PATH, DATETIME_SLUG
+
+LINE_BREAKING_PUNCTUATION_REGEX = r"([.!;:?])"
+""" Regex focusing on characters that can be considered "line-breaking" in certain contexts. """
 
 
 @click.command("step03-process")
@@ -117,14 +120,61 @@ def step03_process(
         click.echo(f"Fine-tuned classifier {classifier_name} does not exist. Interrupting.")
         exit(1)
 
+    #
+    # Create batches of books, process them in parallel
+    #
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        batch = []
 
-def process_book(book: BookIO, classifier_name: str) -> bool:
+        items_count = BookIO.select().offset(offset).limit(limit).order_by(BookIO.barcode).count()
+
+        batch_max_size = utils.get_batch_max_size(
+            items_count=items_count,
+            max_workers=max_workers,
+        )
+
+        # Create batches of items to process
+        for i, book in enumerate(
+            BookIO.select().offset(offset).limit(limit).order_by(BookIO.barcode).iterator(),
+            start=1,
+        ):
+
+            # Add book if it matches criteria (language selection, PD)
+            main_language = book.mainlanguage_set[0]
+            rights_determination = book.hathitrustrightsdetermination_set[0]
+
+            if main_language.from_detection_iso639_3 not in languages:
+                continue
+
+            if (
+                rights_determination.rights_code not in ["pd", "pdus", "cc-zero"]
+                or rights_determination.us_rights_string != "Full view"
+            ):
+                continue
+
+            batch.append(book)
+
+            # Send batch for processing
+            if len(batch) >= batch_max_size or i >= items_count:
+                future = executor.submit(process_batch, batch, classifier_name)
+                futures.append(future)
+                batch = []
+
+        # Process batches
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as err:
+                executor.shutdown(wait=False, cancel_futures=True)
+                raise err
+
+
+def process_batch(books: list[BookIO], classifier_name: str) -> bool:
     """
-    TODO
+    Processes a batch of books.
     """
     classifier_filepath = Path(OUTPUT_MODELS_DIR_PATH, f"{classifier_name}.pickle")
-    output_filepath = Path(OUTPUT_MODELS_DIR_PATH, f"{book.barcode}.json")
-
     classifier: StaticModelForClassification | None = None
     output = []
 
@@ -139,15 +189,33 @@ def process_book(book: BookIO, classifier_name: str) -> bool:
     except Exception as err:
         raise Exception(f"Could not load fine-tuned classifier {classifier_name}.") from err
 
+    for book in books:
+        output.append(process_book(book, classifier))
+
+    return True
+
+
+def process_book(book: BookIO, classifier: StaticModelForClassification) -> bool:
+    """
+    Re-processes the plain text OCR export of all the pages in a given book.
+    Saved output as
+    """
+    processing_start = datetime.now()
+    processing_end = None
+
+    output_filepath = Path(OUTPUT_OCR_POSTPROCESSING_DIR_PATH, f"{book.barcode}.json")
+
+    output = []
+
     #
     # Extract bare OCR chunks for the all book
     #
-    ocr_chunks = OCRPostprocessingTrainingDataset.get_chunks_from_book(book)
+    book_chunks = OCRPostprocessingTrainingDataset.get_chunks_from_book(book)
 
     #
     # Assign types to all chunks
     #
-    for page_chunks in ocr_chunks:
+    for page_chunks in book_chunks:
         predictions = classifier.predict(
             [chunk.get_training_repr() for chunk in page_chunks],
             batch_size=1024 * 10,
@@ -159,16 +227,25 @@ def process_book(book: BookIO, classifier_name: str) -> bool:
     #
     # Recompose the text of each page based on detected chunk types + heuristics
     #
-    for page_chunks in ocr_chunks:
+    for page_chunks in book_chunks:
         page_text = convert_page_chunks_to_text(page_chunks)
         output.append(page_text)
+
+    #
+    # Write output to disk
+    #
+    with open(output_filepath, "w+") as fd:
+        json.dump(output, fd)
+
+    processing_end = datetime.now()
+    click.echo(f"✅ {output_filepath.name} written to disk ({processing_end - processing_start})")
 
     return output
 
 
 def convert_page_chunks_to_text(page_chunks: list[OCRPostprocessingTrainingDataset]) -> str:
     """
-    TODO
+    Uses the detected type of OCR chunks from a given page to recompose it, focusing on readability.
     """
     output = ""
 
@@ -186,6 +263,12 @@ def convert_page_chunks_to_text(page_chunks: list[OCRPostprocessingTrainingDatas
 
         if i + 1 < len(page_chunks):
             next = page_chunks[i + 1]
+
+        # Skip chunks that don't contain text
+        if not current.text or not current.text.strip():
+            continue
+
+        # output += f"<<{current.target_type}>>"
 
         # Process chunk
         if current.target_type == "UNKNOWN":
@@ -225,10 +308,13 @@ def convert_page_chunks_to_text(page_chunks: list[OCRPostprocessingTrainingDatas
             continue
 
     #
-    # Step 2 - Process resulting string
+    # Step 2 - Clean up resulting string from excess line breaks
     #
-    for i in range(0, 5):
+    for i in range(0, 10):
         output = output.replace("\n\n\n", "\n\n")
+        output = output.replace("\n \n", "\n\n")
+
+    output = output.strip()
 
     return output
 
@@ -238,6 +324,10 @@ def process_unknown_chunk(
     previous: OCRPostprocessingTrainingDataset | None = None,
     next: OCRPostprocessingTrainingDataset | None = None,
 ) -> str:
+    """
+    String processing for `UNKNOWN` chunks.
+    """
+    # Add as is, followed by white space
     return f"{current.text} "
 
 
@@ -246,8 +336,15 @@ def process_noise_or_broken_text_chunk(
     previous: OCRPostprocessingTrainingDataset | None = None,
     next: OCRPostprocessingTrainingDataset | None = None,
 ) -> str:
-    # TODO
-    return ""
+    """
+    String processing for `NOISE_OR_BROKEN_TEXT` chunks.
+    """
+    # Do not add to output if it is a single character or empty-like string
+    if not current.text.strip() or re.match(r"^[^\w\s]+$", current.text):
+        return ""
+
+    # Otherwise: add as is, followed by white space
+    return f"{current.text} "
 
 
 def process_page_number_chunk(
@@ -255,12 +352,14 @@ def process_page_number_chunk(
     previous: OCRPostprocessingTrainingDataset | None = None,
     next: OCRPostprocessingTrainingDataset | None = None,
 ) -> str:
-    last_10percent_lines = current.total_lines // 10 * 9
-
-    # Do not render if they are likely to actually be page numbers
-    if current.line_number < 5 or current.line_number > last_10percent_lines:
+    """
+    String processing for `PAGE_NUMBER` chunks.
+    """
+    # Do not add if it is likely an actual page number (based on position in page)
+    if current.line_number <= 5 or current.line_number > (current.total_lines // 10 * 9):
         return ""
 
+    # Otherwise: add as is, followed by white space
     return f"{current.text} "
 
 
@@ -269,10 +368,14 @@ def process_running_head_chunk(
     previous: OCRPostprocessingTrainingDataset | None = None,
     next: OCRPostprocessingTrainingDataset | None = None,
 ) -> str:
-    # Do not render if likely running head
-    if current.line_number < 10 and current.page_number > 5:
+    """
+    String processing for `RUNNING_HEAD` chunks.
+    """
+    # Do not add if it is likely an actual RUNNING HEAD chunk (based on position in page and in book)
+    if current.line_number <= 10 and current.page_number >= 5:
         return ""
 
+    # Otherwise: add as is, followed by white space
     return f"{current.text} "
 
 
@@ -281,37 +384,30 @@ def process_heading_or_title_chunk(
     previous: OCRPostprocessingTrainingDataset | None = None,
     next: OCRPostprocessingTrainingDataset | None = None,
 ) -> str:
-    # TODO
-    # Figure out edge cases towards the end
-    # Further break down headings if they contain an hyphenation?
-    # If next line is not PARAGRAPH_X or LOOSE_SENTENCE_OR_LIST_ITEM and it doesn't start with either a capital letter or a number: don't render
-
+    """
+    String processing for `HEADING_OR_TITLE` chunks.
+    """
     output = ""
 
-    # Don't render if next line is a page number
-    if next and next.target_type == "PAGE_NUMBER":
+    # Skip if more likely to be a RUNNING_HEAD chunk, based on:
+    # - Position in page (first five lines)
+    # - Type of next chunk (e.g: followed by a PAGE_NUMBER)
+    # - Content of next chunk (e.g: starts with a lower case character)
+    if current.line_number <= 5 and next and next.target_type == "PAGE_NUMBER":
         return output
 
-    # Don't render if next line:
-    # - is a PARAGRAPH_X or LOOSE_SENTENCE_OR_LIST_ITEM
-    # - that starts with a lower case character
-    if (
-        next
-        and next.target_type
-        not in ["PARAGRAPH_CHUNK", "PARAGRAPH_END", "LOOSE_SENTENCE_OR_LIST_ITEM"]
-        and next.text
-        and next.text[0].islower()
-    ):
+    if current.line_number <= 5 and next and next.text and next.text[0].islower():
         return output
 
-    # Add markdown heading marker if first of series
-    if previous and previous.target_type != "HEADING_OR_TITLE":
-        output += "\n\n## "
+    # Prepend with double line break if first of series
+    if not previous or previous.target_type != "HEADING_OR_TITLE":
+        output += "\n\n"
 
+    # Add actual text followed by a white space, in all cases
     output += f"{current.text} "
 
-    ## Add double line break if last of series
-    if next and next.target_type != "HEADING_OR_TITLE":
+    # Append with double line break if last of series
+    if not next or next.target_type != "HEADING_OR_TITLE":
         output += "\n\n"
 
     return output
@@ -322,26 +418,75 @@ def process_paragraph_chunk(
     previous: OCRPostprocessingTrainingDataset | None = None,
     next: OCRPostprocessingTrainingDataset | None = None,
 ) -> str:
-    # TODO
-    # Remove hyphenation
-    # Add double line-break is line contains a punctuation in the last third
-    return f"{current.text} "
+    """
+    String processing for `PARAGRAPH_CHUNK` chunks.
+    """
+    hyphenation_removed = False
+
+    # Try to remove hyphenation
+    if current.text and re.match(r"[-‐‑‒–—―−⸺⸻﹘﹣－]$", current.text[-1]):
+        current.text = current.text[:-1]
+        hyphenation_removed = True
+
+    # Inject double line breaks around the last line-breaking punctuation of the line if:
+    # - The line contains more than 1 "word"
+    # - The chunk is preceded and followed by a `PARAGRAPH_CHUNK` or `LOOSE_SENTENCE_OR_LIST_ITEM`
+    # - The line contains a line-breaking punctuation towards the end
+    seq_types = ["PARAGRAPH_CHUNK", "LOOSE_SENTENCE_OR_LIST_ITEM"]
+
+    if (
+        current.text
+        and len(current.text.strip().split(" ")) > 1
+        and re.search(LINE_BREAKING_PUNCTUATION_REGEX, current.text)
+        and (not previous or previous.target_type not in seq_types)
+        and (not next or next.target_type not in seq_types)
+    ):
+        flipped = current.text[::-1]
+        flipped = re.sub(LINE_BREAKING_PUNCTUATION_REGEX, r"\1\n\n", flipped, count=1)
+        current.text = flipped[::-1]
+
+    #
+    # Inject double line break before line if:
+    # - Last line ends with a punctuation
+    # - This line starts with a number or a uppercase character
+    #
+    if (
+        previous
+        and previous.text
+        and re.search(LINE_BREAKING_PUNCTUATION_REGEX, previous.text)
+        and current.text
+        and (current.text[0].isdigit() or current.text[0].isupper())
+    ):
+        current.text = f"\n\n{current.text}"
+
+    # Do not add whitespace if a hyphenation was removed
+    if hyphenation_removed:
+        return current.text
+    else:
+        return f"{current.text} "
 
 
-def process_paragraph_end_chunk(
+def process_paragraph_end_chunk(  #
     current: OCRPostprocessingTrainingDataset,
     previous: OCRPostprocessingTrainingDataset | None = None,
     next: OCRPostprocessingTrainingDataset | None = None,
 ) -> str:
-    # TODO
-    output = ""
+    """
+    String processing for `PARAGRAPH_END` chunks.
+    """
+    # Inject double line breaks around the last line-breaking punctuation of the line if:
+    # - The line contains more than 1 "word"
+    # - The line contains a line-breaking punctuation
+    if (
+        current.text
+        and len(current.text.strip().split(" ")) > 1
+        and re.search(LINE_BREAKING_PUNCTUATION_REGEX, current.text)
+    ):
+        flipped = current.text[::-1]
+        flipped = re.sub(LINE_BREAKING_PUNCTUATION_REGEX, r"\1\n\n", flipped, count=1)
+        current.text = flipped[::-1]
 
-    if [".", "!", ";", ":", "?"] in list(current.text):
-        output += f"{current.text}\n\n"
-    else:
-        output += f"{current.text} "
-
-    return output
+    return f"{current.text}\n\n"
 
 
 def process_loose_sentence_or_list_item_chunk(
@@ -349,15 +494,31 @@ def process_loose_sentence_or_list_item_chunk(
     previous: OCRPostprocessingTrainingDataset | None = None,
     next: OCRPostprocessingTrainingDataset | None = None,
 ) -> str:
-    # TODO
-    output = ""
+    """
+    String processing for `LOOSE_SENTENCE_OR_LIST_ITEM` chunks.
+    """
 
-    if [".", "!", ";", ":", "?"] in list(current.text):
-        output += f"{current.text}\n\n"
-    else:
-        output += f"{current.text} "
+    # If it contains more than 1 word and starts with a number or upper case character:
+    # Prepend it with two line breaks
+    if (
+        current.text
+        and len(current.text.split(" ")) > 1
+        and (current.text[0].isdigit() or current.text[0].isupper())
+    ):
+        current.text = f"\n\n{current.text}"
 
-    return output
+    # Add double line break if chunk is:
+    # - not followed by another LOOSE_SENTENCE_OR_LIST_ITEM
+    # - not followed by a line that starts with a lowercase character
+    if (
+        next
+        and next.text
+        and next.target_type != "LOOSE_SENTENCE_OR_LIST_ITEM"
+        and next.text[0].isupper()
+    ):
+        current.text = f"{current.text}\n\n"
+
+    return f"{current.text} "
 
 
 def process_separator_chunk(
@@ -365,5 +526,11 @@ def process_separator_chunk(
     previous: OCRPostprocessingTrainingDataset | None = None,
     next: OCRPostprocessingTrainingDataset | None = None,
 ) -> str:
-    # TODO
+    """
+    String processing for `SEPARATOR` chunks.
+    """
+    # Skip one-char separators
+    if not current.text or len(current.text) < 2:
+        return ""
+
     return "\n\n---\n\n"
