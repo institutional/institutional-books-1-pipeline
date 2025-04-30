@@ -26,6 +26,9 @@ from const import OUTPUT_MODELS_DIR_PATH, OUTPUT_OCR_POSTPROCESSING_DIR_PATH, DA
 LINE_BREAKING_PUNCTUATION_REGEX = r"([.!;:?])"
 """ Regex focusing on characters that can be considered "line-breaking" in certain contexts. """
 
+ENDS_WITH_DASHES_REGEX = r"[-‐‑‒–—―−⸺⸻﹘﹣－]$"
+""" Regex focusing on strings ending with any type of dash. """
+
 
 @click.command("step03-process")
 @click.option(
@@ -339,6 +342,10 @@ def process_noise_or_broken_text_chunk(
     """
     String processing for `NOISE_OR_BROKEN_TEXT` chunks.
     """
+    # Make it a separator if it's any type of dash
+    if current.text and len(current.text) <= 3 and re.match(ENDS_WITH_DASHES_REGEX, current.text):
+        return "\n\n---\n\n"
+
     # Do not add to output if it is a single character or empty-like string
     if not current.text.strip() or re.match(r"^[^\w\s]+$", current.text):
         return ""
@@ -424,7 +431,7 @@ def process_paragraph_chunk(
     hyphenation_removed = False
 
     # Try to remove hyphenation
-    if current.text and re.match(r"[-‐‑‒–—―−⸺⸻﹘﹣－]$", current.text[-1]):
+    if current.text and re.match(ENDS_WITH_DASHES_REGEX, current.text[-1]):
         current.text = current.text[:-1]
         hyphenation_removed = True
 
@@ -466,7 +473,7 @@ def process_paragraph_chunk(
         return f"{current.text} "
 
 
-def process_paragraph_end_chunk(  #
+def process_paragraph_end_chunk(
     current: OCRPostprocessingTrainingDataset,
     previous: OCRPostprocessingTrainingDataset | None = None,
     next: OCRPostprocessingTrainingDataset | None = None,
@@ -529,8 +536,8 @@ def process_separator_chunk(
     """
     String processing for `SEPARATOR` chunks.
     """
-    # Skip one-char separators
-    if not current.text or len(current.text) < 2:
+    # Skip empty separators
+    if not current.text:
         return ""
 
     return "\n\n---\n\n"
