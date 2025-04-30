@@ -88,6 +88,8 @@ def step01_generate_training_dataset(
 
     This command uses at text-generation model to label line-level OCR chunks.
     This data can then be used to be used to train a (coarse) classification model.
+
+    TODO: Multi GPU support.
     """
     books = []
     books_chunks = {}
