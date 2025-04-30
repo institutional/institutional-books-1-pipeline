@@ -66,7 +66,7 @@ Carefully analyse the information you are given to accurately determine the type
     multiple=True,
     required=False,
     default=["eng", "deu", "fra", "ita", "spa"],
-    help="ISO693_3 code of the languages to focus on. By default, focuses on the top 5 languages.",
+    help="ISO 639-3 code of the languages to focus on. By default, focuses on the top 5 languages.",
 )
 @click.option(
     "--max-workers",
@@ -312,21 +312,28 @@ def assign_ocr_chunk_type(
     ollama_client = ollama.Client(host=os.getenv("OLLAMA_HOST", None))
     target_type = ""
 
-    # Remove RUNNING_HEAD from prompt if we're past line 5 or in the first 5 pages
-    if current.page_number < 5 or current.line_number >= 5:
+    # Remove RUNNING_HEAD from prompt if:
+    # - We're past line 5
+    # - In the first 5 pages
+    # - In the last 5% of the book
+    if (
+        current.page_number < 5
+        or current.page_number > round(current.total_pages // 20 * 19)
+        or current.line_number >= 5
+    ):
         prompt = prompt.replace("- RUNNING_HEAD\n", "")
 
     # Remove PAGE_NUMBER unless prompt if we're either:
     # - In the first 5 lines
     # - In the last 20% of lines
-    if current.line_number < 5 or current.line_number > round(current.total_lines // 4 * 3):
+    if current.line_number > 5 and current.line_number < round(current.total_lines // 4 * 3):
         prompt = prompt.replace("- PAGE_NUMBER\n", "")
 
     # Run completion
     response = ollama_client.ChatResponse = ollama_client.chat(
         model=TARGET_MODEL,
         messages=[
-            {"role": "system", "content": TRAINING_SET_GENERATION_SYSTEM_PROMPT},
+            {"role": "system", "content": prompt},
             {
                 "role": "user",
                 "content": get_auto_annotation_repr(current, previous, next),
