@@ -46,6 +46,7 @@ class OCRPostprocessingTrainingDataset(peewee.Model):
         unique=False,
         index=True,
     )
+    """ 1-indexed """
 
     total_pages = peewee.IntegerField(
         null=True,
@@ -58,6 +59,7 @@ class OCRPostprocessingTrainingDataset(peewee.Model):
         unique=False,
         index=True,
     )
+    """ 1-indexed """
 
     total_lines = peewee.IntegerField(
         null=True,
@@ -110,17 +112,17 @@ class OCRPostprocessingTrainingDataset(peewee.Model):
         output = []
         lines = text.split("\n")
 
-        for i, text_chunk in enumerate(text.split("\n")):
+        for i, text_chunk in enumerate(lines):
             item = OCRPostprocessingTrainingDataset()
             item.book = book.barcode
-            item.page_number = page
+            item.page_number = page + 1
 
             if book.pagecount_set:
                 item.total_pages = book.pagecount_set[0].count_from_ocr
             else:
                 item.total_pages = book.csv_data["Page Count"]
 
-            item.line_number = i
+            item.line_number = i + 1
             item.total_lines = len(lines)
 
             item.text = text_chunk

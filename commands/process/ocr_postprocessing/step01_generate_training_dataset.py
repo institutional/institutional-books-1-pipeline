@@ -227,13 +227,24 @@ def step01_generate_training_dataset(
             future = executor.submit(process_page_chunks, chunks)
             futures[future] = barcode
 
+        # Save records as they come back
         for future in as_completed(futures):
             barcode = futures[future]
 
             try:
                 chunks = future.result()
                 books_chunks[barcode] = chunks
-                utils.process_db_write_batch(OCRPostprocessingTrainingDataset, chunks, [], [])
+
+                for chunk in chunks:
+                    click.echo(f"#{barcode} | {chunk.get_training_repr()} -> {chunk.target_type}")
+
+                utils.process_db_write_batch(
+                    OCRPostprocessingTrainingDataset,
+                    chunks,
+                    [],
+                    [],
+                )
+
             except Exception:
                 click.echo(traceback.format_exc())
                 click.echo("Could not generate OCR postprocessing training set. Interrupting.")
@@ -316,12 +327,12 @@ def assign_ocr_chunk_type(
 
     # Remove RUNNING_HEAD from prompt if:
     # - In the first 5 pages
-    # - We're past line 5
     # - In the last 5% of the book
+    # - We're past line 5
     if (
         current.page_number < 5
         or current.page_number > round(current.total_pages // 20 * 19)
-        or current.line_number >= 5
+        or current.line_number > 5
     ):
         prompt = prompt.replace("- RUNNING_HEAD\n", "")
 
@@ -359,8 +370,6 @@ def assign_ocr_chunk_type(
 
     # Update OCR and return OCR Chunk
     current.target_type = target_type
-
-    click.echo(f"{current.get_training_repr()} -> {current.target_type}")
 
     return current
 
