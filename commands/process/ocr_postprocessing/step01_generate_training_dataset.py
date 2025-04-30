@@ -1,11 +1,13 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import traceback
 import random
+import os
+import re
 
 import click
 import peewee
-import numpy as np
-from openai import OpenAI
+import ollama
+
 
 import utils
 from models import (
@@ -18,7 +20,7 @@ from models import (
 )
 from models.ocr_postprocessing_training_dataset import TARGET_TYPES
 
-TARGET_MODEL = ""
+TARGET_MODEL = "phi4:14b-q8_0"
 """ Model used for generating classification data. """
 
 TRAINING_SET_GENERATION_SYSTEM_PROMPT = f"""
@@ -37,159 +39,10 @@ In this experiment, 1 chunk = 1 line extracted from a plain text OCR export.
 - To determine the TYPE of the text chunk in `<current>`. You should use all of the information available to help make that determination, not just the text in `<current>`. Carefully analyze all of the information you are given.
 - To return that TYPE, and nothing else. Your response MUST be one of the TYPES listed, it cannot be anything else.
 
-## Notes that you can use as hints:
-- Running heads are generally in the first few chunks (0 to 10). They can be hard to distinguish from headings but their proximity to a page number can help.
-- The very beginning and the end of a book are less likely to contain footnotes and running heads.
-- There is likely only 1 page number per page, and it is either at the top (first 5 chunks) or bottom (last 5 chunks) of the page.
-- Footnotes sometimes start with a number, and are sometimes wrapped in parenthesis. They are generally towards the end of the page.
-- When working on paragraphs or footnotes, carefully analyze sentences to determine if it is the beginning, the end, or any chunk of it.
-
 ## Possible values for TYPE:
 - {"\n- ".join(TARGET_TYPES)}
 
-## Examples:
-
-```
-<context>Page 104 of 344, Chunk 1 of 47, Language: eng</context>
-<current>50</current>
-<next>Records of the Geological Survey of New South Wales. [VOL. IV.</next>
-```
-is PAGE_NUMBER 
-
-```
-<context>Page 104 of 344, Chunk 2 of 47, Language: eng</context>
-<previous>50</previous>
-<current>Records of the Geological Survey of New South Wales. [VOL. IV.</current>
-<next>The lanceolate or almost boat-shaped form is a very characteristic feature, and</next>
-```
-is RUNNING_HEAD 
-
-
-```
-<context>Page 104 of 344, Chunk 3 of 47, Language: eng</context>
-<previous>Records of the Geological Survey of New South Wales. [VOL. IV.</previous>
-<current>The lanceolate or almost boat-shaped form is a very characteristic feature, and</current>
-<next>seems to vary but little amongst a large number of specimens, the more club-</next>
-```
-is PARAGRAPH_START
-
-```
-<context>Page 104 of 344, Chunk 4 of 47, Language: eng</context>
-<previous>The lanceolate or almost boat-shaped form is a very characteristic feature, and</previous>
-<current>seems to vary but little amongst a large number of specimens, the more club-</current>
-<next>shaped outline of Fig. 2 arising from a cause before explained. The margins are</next>
-```
-is PARAGRAPH_CHUNK
-
-```
-<context>Page 104 of 344, Chunk 19 of 47, Language: eng</context>
-<previous>wing of the leaf. So far as observation has gone the bifurcation is unifurcate in</previous>
-<current>respective veins.</current>
-<next>We may now compare the leaves of O. lentriculiforme with those of some of its</next>
-
-```
-is PARAGRAPH_END 
-
-```
-<context>Page 165 of 492, Chunk 10 of 41, Language: eng</context>
-<previous>among the rich and the noble. The rich and the</previous>
-<current>noble are not impelled to intellectual exertion by</current>
-<next>necessity. They may be impelled to intellectual</next>
-```
-is PARAGRAPH_CHUNK
-
-
-```
-<context>Page 65 of 364, Chunk 1 of 44, Language: eng</context>
-<current>CHAP. II. §4.] OF CONVICTION.</current>
-<next>59</next>
-```
-is RUNNING_HEAD
-
-```
-<context>Page 65 of 364, Chunk 2 of 44, Language: eng</context>
-<previous>CHAP. II. §4.] OF CONVICTION.</previous>
-<current>59</current>
-<next>This observation is the more important, because</next>
-```
-is PAGE_NUMBER
-
-
-```
-<context>Page 65 of 364, Chunk 24 of 44, Language: eng</context>
-<previous>thought it false-so long unrefuted, or else, denying</previous>
-<current>what they knew to be true.</current>
-<next>Misrepresentation, again, of argument-attempts to</next>
-```
-is PARAGRAPH_END 
-
-
-```
-<context>Page 65 of 364, Chunk 25 of 44, Language: eng</context>
-<previous>what they knew to be true.</previous>
-<current>Misrepresentation, again, of argument-attempts to</current>
-<next>suppress evidence, or to silence a speaker by clamour</next>
-```
-is PARAGRAPH_START
-
-```
-<context>Page 331 of 646, Chunk 32 of 54, Language: ita</context>
-<previous>priv. u. öff. Recht, 1898, XXVI, p. 19 e s.; - VIVANTE, Contr. d'assicur., 1887,</previous>
-<current>III, n. 50.</current>
-<next>-</next>
-```
-is HEADING_FULL
-
-```
-<context>Page 331 of 646, Chunk 33 of 54, Language: ita</context>
-<previous>III, n. 50.</previous>
-<current>-</current>
-<next>---</next>
-```
-is NOISE_OR_BROKEN_TEXT
-
-```
-<context>Page 331 of 646, Chunk 34 of 54, Language: ita</context>
-<previous>-</previous>
-<current>---</current>
-<next>―</next>
-```
-is SEPARATOR
-
-
-```
-<context>Page 331 of 646, Chunk 36 of 54, Language: ita</context>
-<previous>―</previous>
-<current>(2) App. Parigi, 12 febbraio 1857, Sirey, 1857, 2, 186 (dapprima partendo</current>
-<next>dall'esser commerciale il titolo, riguardo all'assicuratore almeno; in seguito</next>
-```
-is FOOTNOTE_START
-
-```
-<context>Page 331 of 646, Chunk 40 of 54, Language: ita</context>
-<previous>biglietti all'ordine emessi da non commercianti); — Id., 2 aprile 1879, Dalloz,</previous>
-<current>1879, 2, 130; — Id., 8 giugno 1899, Dalloz, 1900, 2, 11; Cass. fr., 22 giu-</current>
-<next>gno 1891, Sirey, 1892, 1, 177; Id., 6 maggio 1891, Dalloz, 1893, 1, 179;</next>
-```
-is FOOTNOTE_CHUNK
-
-
-```
-<context>Page 491 of 832, Chunk 16 of 47, Language: eng</context>
-<previous>ment of $102, and judgment was rendered for the balance.</previous>
-<current>Section 907b provides:</current>
-<next>"Nor shall any judgment, the record whereof has been</next>
-```
-is PARAGRAPH_START
-
-
-```
-<context>Page 240 of 328, Chunk 21 of 157, Language: eng</context>
-<previous>1.</previous>
-<current>2</current>
-<next>12,410</next>
-```
-is NOISE_OR_BROKEN_TEXT
+Carefully analyse the information you are given to accurately determine the type of the text in `<current>`. Return a TYPE and nothing else.
 """
 
 
@@ -219,7 +72,7 @@ is NOISE_OR_BROKEN_TEXT
     "--max-workers",
     type=int,
     required=False,
-    default=32,
+    default=1,
     help="Determines how many threads can be run in parallel.",
 )
 @utils.needs_pipeline_ready
@@ -244,8 +97,8 @@ def step01_generate_training_dataset(
     test_cap = 0
     test_count = 0
 
-    if n_samples < 25:
-        click.echo("Cannot generate a set with less than 50 samples.")
+    if n_samples < 10:
+        click.echo("Cannot generate a set with less than 10 samples.")
         exit(1)
 
     #
@@ -363,7 +216,7 @@ def step01_generate_training_dataset(
         books_chunks[book.barcode] = chunks
 
     #
-    # Process batches of chunks in parallel
+    # Process batches of chunks in parallel, save batches as they come
     #
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {}
@@ -378,17 +231,12 @@ def step01_generate_training_dataset(
             try:
                 chunks = future.result()
                 books_chunks[barcode] = chunks
+                utils.process_db_write_batch(OCRPostprocessingTrainingDataset, chunks, [], [])
             except Exception:
                 click.echo(traceback.format_exc())
                 click.echo("Could not generate OCR postprocessing training set. Interrupting.")
                 executor.shutdown(wait=False, cancel_futures=True)
                 exit(1)
-
-    #
-    # Save all chunks
-    #
-    for barcode, chunks in books_chunks.items():
-        utils.process_db_write_batch(OCRPostprocessingTrainingDataset, chunks, [], [])
 
     click.echo("✅ OCR postprocessing training set ready.")
 
@@ -422,14 +270,7 @@ def process_page_chunks(chunks: list[OCRPostprocessingTrainingDataset]):
 
         # Attempt labelling, skip if there was an issue
         try:
-            auto_annotation_repr = OCRPostprocessingTrainingDataset.get_auto_annotation_repr(
-                current,
-                previous,
-                next,
-                len(chunks),
-            )
-
-            assign_ocr_chunk_type(current, auto_annotation_repr)
+            assign_ocr_chunk_type(current, previous, next)
         except Exception:
             click.echo(traceback.format_exc())
             click.echo(
@@ -440,54 +281,116 @@ def process_page_chunks(chunks: list[OCRPostprocessingTrainingDataset]):
 
 
 def assign_ocr_chunk_type(
-    chunk: OCRPostprocessingTrainingDataset,
-    auto_annotation_repr: str,
+    current: OCRPostprocessingTrainingDataset,
+    previous: OCRPostprocessingTrainingDataset | None = None,
+    next: OCRPostprocessingTrainingDataset | None = None,
 ) -> OCRPostprocessingTrainingDataset:
     """
-    Calls the OpenAI (TRAINING_SET_GENERATION_SYSTEM_PROMPT on TARGET_MODEL) to annotate an OCR Chunk.
+    Uses a text generation model to assign one of TARGET_TYPES to  the current OCR chunk.
     """
+    #
+    # Skip LLM processing for simple cases
+    #
+
+    # Empty lines
+    if not current.text or re.match(r"^[^a-zA-Z0-9\s]$", current.text):
+        current.target_type = "NOISE_OR_BROKEN_TEXT"
+        return current
+
+    # Likely page numbers in first few lines
+    if current.line_number < 4 and re.match(
+        r"^[^a-zA-Z0-9]*[+-]?(\d+(\.\d+)?|\.\d+)[^a-zA-Z0-9]*$",
+        current.text,
+    ):
+        current.target_type = "PAGE_NUMBER"
+        return current
+
+    #
+    # Process anything else with an LLM
+    #
+    prompt = TRAINING_SET_GENERATION_SYSTEM_PROMPT
+    ollama_client = ollama.Client(host=os.getenv("OLLAMA_HOST", None))
     target_type = ""
-    perplexity = 0.0
-    average_linear_logprob = 0.0
+
+    # Remove RUNNING_HEAD from prompt if we're past line 5 or in the first 5 pages
+    if current.page_number < 5 or current.line_number >= 5:
+        prompt = prompt.replace("- RUNNING_HEAD\n", "")
+
+    # Remove PAGE_NUMBER unless prompt if we're either:
+    # - In the first 5 lines
+    # - In the last 20% of lines
+    if current.line_number < 5 or current.line_number > round(current.total_lines // 4 * 3):
+        prompt = prompt.replace("- PAGE_NUMBER\n", "")
 
     # Run completion
-    completion = OpenAI().chat.completions.create(
+    response = ollama_client.ChatResponse = ollama_client.chat(
+        model=TARGET_MODEL,
         messages=[
             {"role": "system", "content": TRAINING_SET_GENERATION_SYSTEM_PROMPT},
-            {"role": "user", "content": auto_annotation_repr},
+            {
+                "role": "user",
+                "content": get_auto_annotation_repr(current, previous, next),
+            },
         ],
-        model=TARGET_MODEL,
-        temperature=0.0,
-        max_tokens=25,
-        logprobs=True,
-        top_logprobs=1,
+        options={
+            "temperature": 0,
+            "num_predict": 25,
+        },
     )
 
     # Grab target type, check if its valid
-    target_type = completion.choices[0].message.content
-    target_type = target_type.strip()
+    target_type = response["message"]["content"]
+
+    match = re.search(r"\b(?:[A-Z]+_?)+\b", target_type)
+
+    if match:
+        target_type = match.group()
 
     assert target_type in TARGET_TYPES
 
-    # Compute average linear probability and perplexity
-    # https://cookbook.openai.com/examples/using_logprobs
-    logprobs = [token.logprob for token in completion.choices[0].logprobs.content]
-
-    perplexity = np.exp(-np.mean(logprobs))
-
-    for logprob in logprobs:
-        linear_prob = np.round(np.exp(logprob) * 100, 2)
-        average_linear_logprob += linear_prob
-
-    average_linear_logprob = np.round(average_linear_logprob / len(logprobs), 2)
-
     # Update OCR and return OCR Chunk
-    chunk.target_type = target_type
-    chunk.target_type_average_linear_logprob = average_linear_logprob
-    chunk.target_type_perplexity = perplexity
+    current.target_type = target_type
 
-    click.echo(
-        f"{chunk.get_training_repr()} -> {chunk.target_type} ({chunk.target_type_average_linear_logprob})"
-    )
+    click.echo(f"{current.get_training_repr()} -> {current.target_type}")
 
-    return chunk
+    return current
+
+
+def get_auto_annotation_repr(
+    current: OCRPostprocessingTrainingDataset,
+    previous: OCRPostprocessingTrainingDataset | None = None,
+    next: OCRPostprocessingTrainingDataset | None = None,
+) -> str:
+    """
+    Returns a contextualized representation for a given OCR chunk.
+    This representation can be used to generate training data with an text generation model.
+
+    Example:
+    ```
+    <context>Page 12 of 320, Line 4 of 128</context>
+    <previous>Lorem ipsum </previous>
+    <current>dolor sit</current>
+    <next>amet.</next>
+    ```
+    """
+    output = ""
+
+    # Context
+    output += f"<context>"
+    output += f"Page {current.page_number+1} of {current.total_pages}, "
+    output += f"Line {current.line_number+1} of {current.total_lines}, "
+    output += f"Language: {current.book.mainlanguage_set[0].from_detection_iso639_3}"
+    output += f"</context>\n"
+
+    # Previous chunk
+    if previous:
+        output += f"<previous>{previous.text}</previous>\n"
+
+    # Current chunk
+    output += f"<current>{current.text}</current>\n"
+
+    # Next chunk
+    if next:
+        output += f"<next>{next.text}</next>"
+
+    return output

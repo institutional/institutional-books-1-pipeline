@@ -20,7 +20,6 @@ more-itertools = "^10.6.0"
 morfessor = "^2.0.6"
 numpy = "1.26.4"
 ocroscope = {git = "https://github.com/Pleias/OCRoscope.git"}
-openai = "^1.64.0"
 opencv-python = "^4.11.0.86"
 orjson = "^3.10.16"
 peewee = "^3.17.9"
@@ -42,6 +41,7 @@ torchvision = "^0.21.0"
 transformers = "^4.49.0"
 pandas = "^2.2.3"
 model2vec = {extras = ["train"], version = "^0.4.1"}
+ollama = "^0.4.8"
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"

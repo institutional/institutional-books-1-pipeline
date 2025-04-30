@@ -13,18 +13,10 @@ TARGET_TYPES = [
     "UNKNOWN",
     "NOISE_OR_BROKEN_TEXT",
     "PAGE_NUMBER",
-    "RUNNING_HEAD_FULL",
-    "RUNNING_HEAD_CHUNK",
-    "HEADING_OR_TITLE_FULL",
-    "HEADING_OR_TITLE_CHUNK",
-    "PARAGRAPH_FULL",
+    "RUNNING_HEAD",
+    "HEADING_OR_TITLE",
     "PARAGRAPH_CHUNK",
-    "PARAGRAPH_START",
     "PARAGRAPH_END",
-    "FOOTNOTE_FULL",
-    "FOOTNOTE_CHUNK",
-    "FOOTNOTE_START",
-    "FOOTNOTE_END",
     "LOOSE_SENTENCE_OR_LIST_ITEM",
     "SEPARATOR",
 ]
@@ -49,13 +41,25 @@ class OCRPostprocessingTrainingDataset(peewee.Model):
         index=True,
     )
 
-    page = peewee.IntegerField(
+    page_number = peewee.IntegerField(
         null=True,
         unique=False,
         index=True,
     )
 
-    order = peewee.IntegerField(
+    total_pages = peewee.IntegerField(
+        null=True,
+        unique=False,
+        index=True,
+    )
+
+    line_number = peewee.IntegerField(
+        null=True,
+        unique=False,
+        index=True,
+    )
+
+    total_lines = peewee.IntegerField(
         null=True,
         unique=False,
         index=True,
@@ -73,18 +77,6 @@ class OCRPostprocessingTrainingDataset(peewee.Model):
         index=True,
     )
 
-    target_type_average_linear_logprob = peewee.FloatField(
-        null=True,
-        unique=False,
-        index=False,
-    )
-
-    target_type_perplexity = peewee.FloatField(
-        null=True,
-        unique=False,
-        index=False,
-    )
-
     set = peewee.CharField(
         max_length=256,
         null=True,
@@ -95,76 +87,42 @@ class OCRPostprocessingTrainingDataset(peewee.Model):
 
     def get_training_repr(self) -> str:
         """
-        Returns the current chunk in a format suitable for training / inference for classification with a static model.
-        Example:
-        ```
-        <<12,5>> Hello world
-        ```
-        """
-        return f"<<{self.page},{self.order}>> {self.text}"
-
-    @classmethod
-    def get_auto_annotation_repr(
-        cls,
-        current,
-        previous=None,
-        next=None,
-        total_chunks_for_page: int = 0,
-    ) -> str:
-        """
-        Returns a textual representation for an OCR chunk, in context (page info, previous and next chunk).
-        This representation can be used to generate training data with an text-generation model.
+        Returns a representation of the current OCR chunk for classification training and inference purposes.
 
         Example:
         ```
-        <context>Page 12 of 320, Chunk 4 of 128</context>
-        <previous>Lorem ipsum </previous>
-        <current>dolor sit</current>
-        <next>amet.</next>
+        <<12-45,5-456>> Hello world
         ```
         """
-        output = ""
+        prefix = f"<<{self.page_number}-{self.total_pages},{self.line_number}-{self.total_lines}>>"
 
-        # Context
-        output += f"<context>"
-        output += f"Page {current.page+1} of {current.book.pagecount_set[0].count_from_ocr}, "
-
-        if total_chunks_for_page:
-            output += f"Chunk {current.order+1} of {total_chunks_for_page}, "
-        else:
-            output += f"Chunk {current.order+1}, "
-
-        output += f"Language: {current.book.mainlanguage_set[0].from_detection_iso639_3}"
-        output += f"</context>\n"
-
-        # Previous chunk
-        if previous:
-            output += f"<previous>{previous.text}</previous>\n"
-
-        # Current chunk
-        output += f"<current>{current.text}</current>\n"
-
-        # Next chunk
-        if next:
-            output += f"<next>{next.text}</next>"
-
-        return output
+        return f"{prefix} {self.text}"
 
     @classmethod
     def get_chunks_from_page(cls, book: BookIO, page: int) -> list:
         """
         Splits the text of a page into a list of (unsaved and untyped) OCR chunks as OCRPostprocessingTrainingDataset objects.
+        Simple line-by-line split (matches the collection's formatting).
         """
         assert isinstance(book, BookIO)
         text = book.text[page]
 
         output = []
+        lines = text.split("\n")
 
         for i, text_chunk in enumerate(text.split("\n")):
             item = OCRPostprocessingTrainingDataset()
             item.book = book.barcode
-            item.page = page
-            item.order = i
+            item.page_number = page
+
+            if book.pagecount_set:
+                item.total_pages = book.pagecount_set[0].count_from_ocr
+            else:
+                item.total_pages = book.csv_data["Page Count"]
+
+            item.line_number = i
+            item.total_lines = len(lines)
+
             item.text = text_chunk
 
             output.append(item)
