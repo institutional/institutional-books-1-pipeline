@@ -16,6 +16,8 @@ The Institutional Data Initiative's pipeline for analyzing, refining, and publis
 - [CLI: `process`](#cli-process)
 - [CLI: `export`](#cli-export)
 - [CLI: `publish`](#cli-publish)
+- [About IDI](#about-idi)
+- [Cite](#cite)
 
 ---
 
@@ -682,7 +684,12 @@ _Both dicts are shaped as follows when available:_
 
 ---
 
-## Cite this work
+## About IDI
+The Institutional Data Initiative at Harvard Law School Library works with knowledge institutions—from libraries and museums to cultural groups and government agencies—to refine and publish their collections as data. [Reach out to collaborate on your collections](https://institutionaldatainitiative.org/#get-involved).
+
+---
+
+## Cite
 
 ```bibtext
 @misc{cargnelutti2025institutionalbooks10242b,
@@ -695,7 +702,6 @@ _Both dicts are shaped as follows when available:_
       url={https://arxiv.org/abs/2506.08300}, 
 }
 ```
-</details>
 
 [👆 Back to the summary](#summary)
 
