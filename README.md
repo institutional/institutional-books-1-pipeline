@@ -96,6 +96,10 @@ db = utils.get_db()
 
 All [models](/models/) cross-reference `BookIO` via a `book` foreign key.
 
+### Language-Specific Processing
+
+- **[Processing Japanese Book Data](./docs/japanese_book_processing.md)**: Guidelines for identifying and processing Japanese-language books in the collection.
+
 [👆 Back to the summary](#summary)
 
 ---
