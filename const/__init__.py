@@ -63,10 +63,11 @@ OUTPUT_PIPELINE_READY_FILEPATH = Path(DATA_DIR_PATH, "ready.check")
 #
 GRIN_TO_S3_TRANCHES = [
     "VIEW_FULL",
-    "VIEW_SNIPPET",
+    "VIEW_SNIPPET", 
     "VIEW_NONE",
     "VIEW_METADATA",
     "MISSING",
+    "hf_data",
 ]
 """ GRIN TO S3: Available tranches. """
 
@@ -76,6 +77,7 @@ GRIN_TO_S3_TRANCHES_TO_BUCKET_NAMES = {
     "VIEW_NONE": "gbooks-clearance",
     "VIEW_METADATA": "gbooks-clearance",
     "MISSING": "gbooks-clearance",
+    "hf_data": "hf-data",  # Placeholder for HF data
 }
 """ 
     GRIN TO S3: Available tranches and buckets hosting them. 
@@ -85,6 +87,7 @@ GRIN_TO_S3_TRANCHES_TO_BUCKET_NAMES = {
 GRIN_TO_S3_BUCKET_NAMES_TO_TRANCHES = {
     "gbooks-primary": ["VIEW_FULL"],
     "gbooks-clearance": ["VIEW_SNIPPET", "VIEW_NONE", "VIEW_METADATA", "MISSING"],
+    "hf-data": ["hf_data"],  # Placeholder for HF data
 }
 """ 
     GRIN TO S3: Available buckets and the tranches they host. 

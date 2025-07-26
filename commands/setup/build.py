@@ -10,6 +10,7 @@ import glob
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import click
+from datasets import load_dataset
 
 import utils
 import models
@@ -27,6 +28,12 @@ import utils.pipeline_readiness
 
 
 @click.command("build")
+@click.option(
+    "--source",
+    type=click.Choice(['s3', 'hf']),
+    default='s3',
+    help="Data source: 's3' for original S3 buckets, 'hf' for HuggingFace dataset",
+)
 @click.option(
     "--overwrite",
     is_flag=True,
@@ -51,20 +58,25 @@ import utils.pipeline_readiness
     default=multiprocessing.cpu_count(),
     help="Determines how many workers can be spun up for multiprocessing tasks.",
 )
+@click.option(
+    "--limit",
+    type=int,
+    help="Limit number of books to download (useful for HF testing)",
+)
 def build(
+    source: str,
     overwrite: bool,
     tables_only: bool,
     max_parallel_downloads: int,
     max_workers: int,
+    limit: int = None,
 ):
     """
     Initializes the pipeline:
     - Creates the local database and its tables
-    - Downloads source files from the output of `grin-to-s3`, hosted on S3 or R2
+    - Downloads source files from S3 buckets OR HuggingFace dataset
     - Indexes records within individual CSV and JSONL files so `BookIO` can perform fast random access on any barcode.
     """
-    jsonl_gz_remote_filepaths = []
-
     #
     # Database setup
     #
@@ -83,6 +95,27 @@ def build(
             click.echo(traceback.format_exc())
             click.echo("Could not initialize database.")
             exit(1)
+
+    # Route to appropriate build method based on source
+    if source == 'hf':
+        click.echo("🤗 Building from HuggingFace dataset...")
+        build_from_huggingface(limit, max_workers, overwrite)
+        
+        # Index the HF files for compatibility with existing pipeline
+        click.echo("📋 Indexing HF content for pipeline compatibility...")
+        index_hf_files(max_workers)
+    else:
+        click.echo("☁️ Building from S3 buckets...")
+        build_from_s3(overwrite, max_parallel_downloads, max_workers)
+
+    # Mark pipeline as ready
+    utils.pipeline_readiness.set_pipeline_readiness(True)
+    click.echo("✅ Pipeline is ready.")
+
+
+def build_from_s3(overwrite: bool, max_parallel_downloads: int, max_workers: int):
+    """Original S3-based build process"""
+    jsonl_gz_remote_filepaths = []
 
     #
     # List available jsonl.gz files for each bucket
@@ -431,3 +464,174 @@ def index_csv_file(tranche: str) -> bool:
         click.echo(f"💾 {len(entries_to_update)} records to update from {csv_filepath.name}")
         with utils.get_db().atomic():
             BookIO.bulk_update(entries_to_update, fields=[BookIO.csv_offset], batch_size=1000)
+
+
+def build_from_huggingface(limit: int = None, max_workers: int = None, overwrite: bool = False):
+    """
+    Build local database from HuggingFace dataset instead of S3.
+    Creates proper file structure compatible with existing pipeline.
+    """
+    dataset_name = "instdin/institutional-books-1.0"
+    
+    # Ensure directories exist
+    os.makedirs(INPUT_JSONL_DIR_PATH, exist_ok=True)
+    os.makedirs(INPUT_CSV_DIR_PATH, exist_ok=True)
+
+    # Load and process dataset
+    click.echo(f"📚 Loading dataset from HuggingFace...")
+    try:
+        dataset = load_dataset(dataset_name, split="train", streaming=True)
+    except Exception as e:
+        click.echo(f"❌ Could not load dataset: {e}")
+        return
+
+    # Create file structure compatible with pipeline
+    tranche = "hf_data"
+    jsonl_filepath = Path(INPUT_JSONL_DIR_PATH, f"{tranche}-0001.jsonl")
+    csv_filepath = Path(INPUT_CSV_DIR_PATH, f"{tranche}-books.csv")
+    
+    # Remove existing files if overwrite is enabled
+    if overwrite:
+        if jsonl_filepath.exists():
+            jsonl_filepath.unlink()
+        if csv_filepath.exists():
+            csv_filepath.unlink()
+    
+    # Skip if files exist and overwrite is False
+    if not overwrite and jsonl_filepath.exists() and csv_filepath.exists():
+        click.echo(f"⏭️ HF files already exist. Use --overwrite to regenerate.")
+        return
+    
+    click.echo("🔄 Creating compatible file structure...")
+    
+    books_processed = 0
+    csv_header_written = False
+    
+    with open(jsonl_filepath, 'w') as jsonl_file, open(csv_filepath, 'w', newline='') as csv_file:
+        csv_writer = None
+        
+        for row in dataset:
+            if limit and books_processed >= limit:
+                break
+            
+            # Create JSONL entry (compatible with existing pipeline)
+            jsonl_data = create_jsonl_entry_from_hf_row(row)
+            if not jsonl_data:
+                continue
+                
+            # Write to JSONL file
+            jsonl_offset = jsonl_file.tell()
+            json.dump(jsonl_data, jsonl_file)
+            jsonl_file.write('\n')
+            
+            # Create CSV entry (for metadata extraction) - always create one
+            csv_data = create_csv_entry_from_hf_row(row)
+            if not csv_data:
+                # Create minimal CSV entry if data is missing
+                csv_data = {
+                    'Barcode': row.get('barcode_src', ''),
+                    'Title': '',
+                    'Author': '',
+                    'Language': '',
+                    'Date 1': '',
+                    'Date 2': '',
+                    'Page Count': 0,
+                    'OCR Analysis Score': 0,
+                    'Topic or Subject': '',
+                    'Genre or Form': '',
+                    'Publisher': '',
+                    'Place of Publication': '',
+                }
+            
+            if not csv_header_written:
+                csv_writer = csv.DictWriter(csv_file, fieldnames=csv_data.keys())
+                csv_writer.writeheader()
+                csv_header_written = True
+            
+            csv_offset = csv_file.tell()
+            csv_writer.writerow(csv_data)
+            
+            # BookIO records will be created later by indexing process
+            
+            books_processed += 1
+            if books_processed % 100 == 0:
+                click.echo(f"📚 Processed {books_processed} books...")
+
+    click.echo(f"🎉 Built database with {books_processed} books from HuggingFace!")
+    click.echo(f"📁 Created {jsonl_filepath.name} and {csv_filepath.name}")
+
+
+def create_jsonl_entry_from_hf_row(hf_row):
+    """
+    Create JSONL entry compatible with existing pipeline from HF row.
+    """
+    barcode = hf_row.get('barcode_src')
+    if not barcode:
+        return None
+    
+    # Create JSONL data structure that matches S3 format
+    return {
+        'barcode': barcode,
+        'title': hf_row.get('title_src', ''),
+        'author': hf_row.get('author_src', ''),
+        'text_by_page': hf_row.get('text_by_page_src', []),
+        'text_by_page_gen': hf_row.get('text_by_page_gen', []),
+        'language': hf_row.get('language_src', ''),
+        'language_gen': hf_row.get('language_gen', ''),
+        'page_count': hf_row.get('page_count_src', 0),
+        'token_count': hf_row.get('token_count_o200k_base_gen', 0),
+        'ocr_score': hf_row.get('ocr_score_src', 0),
+        'ocr_score_gen': hf_row.get('ocr_score_gen', 0),
+        'date1': hf_row.get('date1_src', ''),
+        'date2': hf_row.get('date2_src', ''),
+        'topic_or_subject': hf_row.get('topic_or_subject_src', ''),
+        'genre_or_form': hf_row.get('genre_or_form_src', ''),
+        'identifiers': hf_row.get('identifiers_src', {}),
+        'hathitrust_data': hf_row.get('hathitrust_data_ext', {}),
+    }
+
+
+def create_csv_entry_from_hf_row(hf_row):
+    """
+    Create CSV entry compatible with metadata extraction from HF row.
+    """
+    barcode = hf_row.get('barcode_src')
+    if not barcode:
+        return None
+    
+    # Create CSV data structure that matches expected metadata format
+    return {
+        'Barcode': barcode,
+        'Title': hf_row.get('title_src', ''),
+        'Author': hf_row.get('author_src', ''),
+        'Language': hf_row.get('language_src', ''),
+        'Date 1': hf_row.get('date1_src', ''),
+        'Date 2': hf_row.get('date2_src', ''),
+        'Page Count': hf_row.get('page_count_src', 0),
+        'OCR Analysis Score': hf_row.get('ocr_score_src', 0),
+        'Topic or Subject': hf_row.get('topic_or_subject_src', ''),
+        'Genre or Form': hf_row.get('genre_or_form_src', ''),
+        'Publisher': hf_row.get('publisher_src', ''),
+        'Place of Publication': hf_row.get('place_of_publication_src', ''),
+    }
+
+
+
+
+def index_hf_files(max_workers: int):
+    """
+    Index HF files using the same logic as S3 files for pipeline compatibility.
+    """
+    tranche = "hf_data"
+    
+    # Index JSONL file
+    jsonl_filepath = Path(INPUT_JSONL_DIR_PATH, f"{tranche}-0001.jsonl")
+    if jsonl_filepath.exists():
+        click.echo(f"📋 Indexing {jsonl_filepath.name}...")
+        index_jsonl_file(jsonl_filepath)
+    
+    # Index CSV file
+    csv_filepath = Path(INPUT_CSV_DIR_PATH, f"{tranche}-books.csv") 
+    if csv_filepath.exists():
+        click.echo(f"📋 Indexing {csv_filepath.name}...")
+        index_csv_file(tranche)
