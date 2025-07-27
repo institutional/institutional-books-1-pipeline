@@ -9,6 +9,7 @@ The Institutional Data Initiative's pipeline for analyzing, refining, and publis
 
 ## Summary 
 - [Getting started](#getting-started)
+- [Docker setup (alternative)](#docker-setup-alternative)
 - [Available utilities](#available-utilities)
 - [CLI: Common options](#cli-common-options)
 - [CLI: `setup`](#cli-setup)
@@ -50,6 +51,76 @@ python pipeline.py setup build # Must be run at least once!
 - **process**: Processing and/or augmentation of data from the collection.
 - **export**: Export of samples and stats. 
 - **publish**: Prepares the dataset for publication. 
+
+[👆 Back to the summary](#summary)
+
+---
+
+## Docker setup (alternative)
+
+**For users experiencing C++ compilation issues (especially on M1/M2 Macs):**
+
+Docker provides a consistent Linux environment that avoids platform-specific dependency issues.
+
+**Prerequisites:**
+- [Docker](https://docs.docker.com/get-docker/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+
+```bash
+# Clone project
+git clone https://github.com/instdin/institutional-books-1-pipeline.git
+cd institutional-books-1-pipeline
+
+# Edit environment variables
+nano .env # (or any text editor)
+
+# Start containers (builds automatically)
+docker compose up -d --build
+
+# Run pipeline commands
+docker compose exec institutional-books-pipeline python pipeline.py setup build --tables-only
+docker compose exec institutional-books-pipeline python pipeline.py setup status
+
+# Interactive shell access
+docker compose exec institutional-books-pipeline bash
+
+# Stop containers when done
+docker compose down
+```
+
+**Key benefits:**
+- Resolves C++ dependency compilation issues on M1/M2 Macs
+- Consistent environment across all platforms
+- Data persistence through volume mounts
+
+**Command structure:**
+```bash
+# General pattern
+docker compose exec institutional-books-pipeline python pipeline.py [command]
+
+# Examples
+docker compose exec institutional-books-pipeline python pipeline.py analyze run-text-analysis
+docker compose exec institutional-books-pipeline python pipeline.py export stats overview
+```
+
+**Adding Ollama for OCR postprocessing (optional):**
+
+If you need to use the OCR postprocessing features (`process ocr-postprocessing step01-generate-training-dataset`):
+
+1. **Uncomment the Ollama sections** in `docker-compose.yml` (already included, just commented out)
+2. **Restart containers:**
+   ```bash
+   docker compose down
+   docker compose up -d --build
+   ```
+3. **Pull the required model:**
+   ```bash
+   docker compose exec ollama ollama pull phi4:14b-q8_0
+   ```
+4. **Set the Ollama host** in your `.env`:
+   ```bash
+   OLLAMA_HOST=http://ollama:11434
+   ```
 
 [👆 Back to the summary](#summary)
 
