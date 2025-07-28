@@ -9,6 +9,7 @@ The Institutional Data Initiative's pipeline for analyzing, refining, and publis
 
 ## Summary 
 - [Getting started](#getting-started)
+- [For Contributors Without S3 Access](#for-contributors-without-s3-access)
 - [Available utilities](#available-utilities)
 - [CLI: Common options](#cli-common-options)
 - [CLI: `setup`](#cli-setup)
@@ -41,7 +42,12 @@ nano .env # (or any text editor)
 
 # Open python environment and pull source data / build the local database
 poetry shell # OR, for newer versions of poetry: eval $(poetry env activate)
-python pipeline.py setup build # Must be run at least once!
+
+# Build from S3 (requires AWS credentials) - DEFAULT
+python pipeline.py setup build
+
+# OR build from HuggingFace (no AWS credentials required)
+python pipeline.py setup build --source hf
 ```
 
 **Commands are grouped as follows:**
@@ -50,6 +56,53 @@ python pipeline.py setup build # Must be run at least once!
 - **process**: Processing and/or augmentation of data from the collection.
 - **export**: Export of samples and stats. 
 - **publish**: Prepares the dataset for publication. 
+
+[👆 Back to the summary](#summary)
+
+---
+
+## For Contributors Without S3 Access
+
+If you don't have access to the original S3 data sources, you can still contribute to the project by using the HuggingFace dataset:
+
+```bash
+# Quick setup for contributors
+git clone https://github.com/instdin/institutional-books-1-pipeline.git
+cd institutional-books-1-pipeline
+poetry install
+poetry shell
+
+# Build from HuggingFace (no AWS credentials needed)
+python pipeline.py setup build --source hf --limit 100  # Start small for testing
+
+# HuggingFace source now provides full pipeline compatibility
+# All analysis commands work with HF data:
+python pipeline.py analyze extract-ocr-quality-from-metadata
+python pipeline.py analyze run-ocr-quality-detection  
+python pipeline.py analyze extract-page-count
+# etc.
+```
+
+**Key differences when using HuggingFace source:**
+- ✅ **Full compatibility**: All analysis commands work with HF data structure
+- ✅ **No AWS credentials required**: Direct download from HuggingFace
+- ✅ **Pre-processed data**: Metadata already extracted and included
+- ✅ **Complete pipeline support**: All metadata extraction and analysis commands work
+- Use `--limit` for testing to avoid downloading the full dataset
+
+**Command Compatibility with HuggingFace source:**
+- ✅ **Analysis commands work**: Full compatibility with pipeline analysis commands
+- ✅ **Metadata extraction works**: Proper CSV files generated from HF data
+- ✅ **Build process works**: Successfully downloads and indexes data  
+- ✅ **Status commands work**: Can check pipeline and database status
+
+**The HuggingFace source now provides full pipeline compatibility for development and analysis work.**
+
+Check what data is available with: `python pipeline.py setup status`
+
+**Additional utilities:**
+- `download_single_book.py` - Download specific books for testing
+- `test_hf_access.py` - Test HuggingFace dataset connectivity
 
 [👆 Back to the summary](#summary)
 
@@ -127,13 +180,30 @@ Here are common options:
 
 Initializes the pipeline: 
 - Creates the local database and its tables.
-- Downloads source files from the output of `grin-to-s3`, hosted on S3 or R2.
+- Downloads source files from S3 buckets OR HuggingFace dataset.
 - Indexes records within individual CSV and JSONL files so `BookIO` can perform fast random access on any barcode.
 
+**Data Sources:**
+- `--source s3` (default): Downloads from original S3 buckets (requires AWS credentials)  
+- `--source hf`: Downloads from HuggingFace dataset (no AWS credentials required)
+
 ```bash
+# Build from S3 (default, requires AWS credentials)
 python pipeline.py setup build
-python pipeline.py setup build --tables-only # Allows for only creating tables without populating them
+python pipeline.py setup build --source s3
+
+# Build from HuggingFace (no AWS credentials required)
+python pipeline.py setup build --source hf
+
+# Limit number of books (useful for testing HF source)
+python pipeline.py setup build --source hf --limit 100
+
+# Only create database tables without populating them
+python pipeline.py setup build --tables-only
 ```
+
+**Note for Contributors:** If you don't have access to the S3 buckets, use `--source hf` to download data from the published HuggingFace dataset instead.
+
 </details>
 
 <details>
