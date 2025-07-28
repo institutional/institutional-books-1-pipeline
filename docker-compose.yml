@@ -1,0 +1,40 @@
+services:
+  institutional-books-pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: idi-pipeline
+    volumes:
+      # Mount the data directory to persist data
+      - ./data:/app/data
+      # Mount the .env file if it exists
+      - ./.env:/app/.env:ro
+      # Mount source code for development (optional - comment out for production)
+      - ./commands:/app/commands
+      - ./models:/app/models
+      - ./utils:/app/utils
+      - ./const:/app/const
+      - ./pipeline.py:/app/pipeline.py
+    environment:
+      - PYTHONPATH=/app
+    working_dir: /app
+    # Keep container running for interactive use
+    stdin_open: true
+    tty: true
+    # Override default command to keep container alive
+    command: tail -f /dev/null
+
+  # Uncomment the section below if you need OCR postprocessing features
+  # Note: OCR postprocessing with phi4:14b-q8_0 requires significant compute resources
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: idi-ollama
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   ports:
+  #     - "11434:11434"
+
+# Uncomment if using Ollama
+# volumes:
+#   ollama_data:
+
