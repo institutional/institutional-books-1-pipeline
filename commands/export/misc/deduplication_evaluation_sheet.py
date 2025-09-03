@@ -4,10 +4,11 @@ from pathlib import Path
 import random
 
 import click
+from loguru import logger
 
 import utils
 from models import BookIO, ScannedTextSimhash
-from const import OUTPUT_EXPORT_DIR_PATH, DATETIME_SLUG
+from const import EXPORT_DIR_PATH, DATETIME_SLUG
 
 
 @click.command("deduplication-evaluation-sheet")
@@ -43,7 +44,7 @@ def deduplication_evaluation_sheet(n_samples: int, max_workers: int):
     #
     # Collect group of duplicates
     #
-    click.echo("📋 Collecting likely duplicates ...")
+    logger.info("Collecting likely duplicates ...")
     hashes_to_books = utils.get_filtered_duplicates(max_workers)
 
     # Pick `n_samples` hashes (quadruple `n_samples` to account for export filters)
@@ -54,10 +55,10 @@ def deduplication_evaluation_sheet(n_samples: int, max_workers: int):
     #
     # Export samples
     #
-    click.echo(f"💾 Saving {n_samples} samples ...")
+    logger.info(f"Saving {n_samples} samples ...")
 
     output_filepath = Path(
-        OUTPUT_EXPORT_DIR_PATH,
+        EXPORT_DIR_PATH,
         f"deduplication-eval-sheet-{n_samples}-{DATETIME_SLUG}.csv",
     )
 
@@ -79,21 +80,8 @@ def deduplication_evaluation_sheet(n_samples: int, max_workers: int):
             if len(books) < 2:
                 continue
 
-            # Check that all barcodes are in the "VIEW_FULL" tranche.
-            # This will help review items by eliminating entries that can't be checked online.
-            not_all_view_full = False
-
-            for book in books:
-                if book.tranche != "VIEW_FULL":
-                    not_all_view_full = True
-
-                gbooks_urls.append(book.csv_data["Google Books Link"])
-
-            if not_all_view_full:
-                continue
-
             writer.writerow([simhash] + gbooks_urls)
 
             samples_written += 1
 
-    click.echo(f"✅ {output_filepath.name} saved to disk ({n_samples} samples).")
+    logger.info(f"{output_filepath.name} saved to disk ({n_samples} samples)")

@@ -21,8 +21,8 @@ def get_metadata_as_text_prompt(
     # Title
     title = ""
 
-    for gxml_key in ["gxml Title", "gxml Title Remainder"]:
-        title += book.csv_data.get(gxml_key, "")
+    for gxml_key in ["MARC Title", "MARC Title Remainder"]:
+        title += book.metadata.get(gxml_key, "")
         title += " "
 
     if title.strip():
@@ -32,11 +32,11 @@ def get_metadata_as_text_prompt(
     author = ""
 
     for gxml_key in [
-        "gxml Author (Personal Name)",
-        "gxml Author (Corporate Name)",
-        "gxml Author (Meeting Name)",
+        "MARC Author Personal",
+        "MARC Author Corporate",
+        "MARC Author Meeting",
     ]:
-        author += book.csv_data.get(gxml_key, "")
+        author += book.metadata.get(gxml_key, "")
         author += " "
 
     if author.strip():
@@ -79,7 +79,7 @@ def get_metadata_as_text_prompt(
             pass
 
     # General note
-    general_note = book.csv_data.get("gxml General Note", None)
+    general_note = book.metadata.get("MARC General Note", None)
 
     if general_note:
         prompt += f"General note: {general_note}"

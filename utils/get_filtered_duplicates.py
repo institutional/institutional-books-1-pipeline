@@ -4,7 +4,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import peewee
 
-from const import HATHITRUST_PD_CODES, HATHITRUST_PD_STRING
+import utils
 
 
 def get_filtered_duplicates(max_workers: int = multiprocessing.cpu_count(), pd_only=True) -> dict:
@@ -43,15 +43,8 @@ def get_filtered_duplicates(max_workers: int = multiprocessing.cpu_count(), pd_o
         hash = entry.hash
         book = entry.book
 
-        if pd_only:
-            rights_determination: HathitrustRightsDetermination = None
-            rights_determination = book.hathitrustrightsdetermination_set[0]
-
-            try:
-                assert rights_determination.rights_code in HATHITRUST_PD_CODES
-                assert rights_determination.us_rights_string == HATHITRUST_PD_STRING
-            except:
-                continue
+        if pd_only and not utils.is_pd(book):
+            continue
 
         if hash is None:
             continue

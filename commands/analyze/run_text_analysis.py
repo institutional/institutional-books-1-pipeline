@@ -6,12 +6,14 @@ from datetime import datetime
 
 import click
 import iso639
+
 import polyglot
 import polyglot.text
 import tiktoken
+from loguru import logger
 
 import utils
-from utils import get_batch_max_size, process_db_write_batch, get_db
+from utils import get_batch_max_size, process_db_write_batch
 from models import BookIO, TextAnalysis, OCRPostProcessingTextAnalysis
 
 TOKENIZER_NAME = "o200k_base"
@@ -110,8 +112,8 @@ def run_text_analysis(
             try:
                 future.result()
             except Exception:
-                click.echo(traceback.format_exc())
-                click.echo("Could not run text analysis on OCR'd texts. Interrupting.")
+                logger.debug(traceback.format_exc())
+                logger.error("Could not run text analysis on OCR'd texts. Interrupting.")
                 executor.shutdown(wait=False, cancel_futures=True)
                 exit(1)
 
@@ -145,7 +147,7 @@ def process_books_batch(
             already_exists = True
 
             if already_exists and not overwrite:
-                click.echo(f"⏭️ #{book.barcode} already analyzed.")
+                logger.info(f"#{book.barcode} already analyzed")
                 continue
         except Exception:
             pass
@@ -169,7 +171,7 @@ def process_books_batch(
 
         # We will create an empty record if no text is available.
         if not merged_text.strip():
-            click.echo(f"⏭️ #{book.barcode} does not have text.")
+            logger.warning(f"#{book.barcode} does not have text")
         else:
             #
             # Split text into words/sentences/n-grams
@@ -279,7 +281,7 @@ def process_books_batch(
             if text_analysis.tokenizability_o200k_base_ratio > 100.0:
                 text_analysis.tokenizability_o200k_base_ratio = 100.0
 
-            click.echo(f"🧮 #{book.barcode} processed in {datetime.now() - start_datetime}.")
+            logger.info(f"#{book.barcode} processed in {datetime.now() - start_datetime}")
 
         #
         # Add to batch

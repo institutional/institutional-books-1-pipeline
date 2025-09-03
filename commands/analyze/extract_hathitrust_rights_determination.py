@@ -1,3 +1,4 @@
+import os
 import re
 import traceback
 from datetime import datetime
@@ -6,14 +7,15 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import click
 import requests
 from bs4 import BeautifulSoup
+from loguru import logger
 
 from utils import (
     needs_pipeline_ready,
+    needs_hathitrust_collection_prefix,
     get_batch_max_size,
     process_db_write_batch,
 )
 from models import BookIO, HathitrustRightsDetermination
-from const import HATHITRUST_COLLECTION_PREFIX
 
 
 @click.command("extract-hathitrust-rights-determination")
@@ -43,6 +45,7 @@ from const import HATHITRUST_COLLECTION_PREFIX
     help="Determines how many subprocesses can be run in parallel. Be mindful of Hathitrust's resources!",
 )
 @needs_pipeline_ready
+@needs_hathitrust_collection_prefix
 def extract_hathitrust_rights_determination(
     overwrite: bool,
     offset: int | None,
@@ -80,20 +83,24 @@ def extract_hathitrust_rights_determination(
                 futures.append(future)
                 batch = []
 
-        # Run them in parallel processes, update records as they come back
+        # Run batches in parallel
         for future in as_completed(futures):
             try:
                 future.result()
             except Exception:
-                click.echo(traceback.format_exc())
-                click.echo("Couldn't pull rights determination data from Hathitrust. Interrupting.")
+                logger.debug(traceback.format_exc())
+
+                logger.error(
+                    "Couldn't get rights determination data from Hathitrust. Interrupting."
+                )
+
                 executor.shutdown(wait=False, cancel_futures=True)
                 exit(1)
 
 
 def process_batch(items: list[BookIO], overwrite=False) -> bool:
     """
-    Processes a batch of BookIO etnries.
+    Processes a batch of BookIO entries.
     """
     entries_to_create = []
     entries_to_update = []
@@ -115,7 +122,7 @@ def process_batch(items: list[BookIO], overwrite=False) -> bool:
         item = None
         already_exists = False
 
-        htid = f"{HATHITRUST_COLLECTION_PREFIX}.{book.barcode.lower()}"
+        htid = f"{os.getenv("HATHITRUST_COLLECTION_PREFIX")}.{book.barcode.lower()}"
         item_data = None  # data from the "items" field for that htid
         record_data = None  # data from the "records" field for that htid
         reason_code = None
@@ -130,7 +137,7 @@ def process_batch(items: list[BookIO], overwrite=False) -> bool:
             already_exists = True
 
             if already_exists and not overwrite:
-                click.echo(f"⏭️ #{book.barcode} already analyzed.")
+                logger.info(f"#{book.barcode} already analyzed")
                 continue
         except:
             pass
@@ -143,7 +150,7 @@ def process_batch(items: list[BookIO], overwrite=False) -> bool:
             assert response["records"]
             assert response["items"]
         except Exception as err:
-            # click.echo(traceback.format_exc())
+            # logger.debug(traceback.format_exc())
             pass
 
         # Find data for this HTID in list of items
@@ -157,7 +164,7 @@ def process_batch(items: list[BookIO], overwrite=False) -> bool:
 
             assert item_data
         except Exception as err:
-            # click.echo(traceback.format_exc())
+            # logger.debug(traceback.format_exc())
             pass
 
         # Find data for this HTID in list of records (via fromRecord)
@@ -165,7 +172,7 @@ def process_batch(items: list[BookIO], overwrite=False) -> bool:
             record_data = response["records"][item_data["fromRecord"]]
             assert record_data
         except Exception as err:
-            # click.echo(traceback.format_exc())
+            # logger.debug(traceback.format_exc())
             pass
 
         #
@@ -188,7 +195,7 @@ def process_batch(items: list[BookIO], overwrite=False) -> bool:
             assert reason_code
             assert re.match(r"^[a-z]+$", reason_code)
         except:
-            # click.echo(traceback.format_exc())
+            # logger.debug(traceback.format_exc())
             pass
 
         #
@@ -208,9 +215,9 @@ def process_batch(items: list[BookIO], overwrite=False) -> bool:
             item.last_update_day = item_data["lastUpdate"][6:8]
             item.enumcron = item_data["enumcron"] if item_data["enumcron"] else None
             item.us_rights_string = item_data["usRightsString"]
-            click.echo(f"🧮 #{book.barcode} -> {item.rights_code} ({item.reason_code})")
+            logger.info(f"#{book.barcode} -> {item.rights_code} ({item.reason_code})")
         else:
-            click.echo(f"⏭️ #{book.barcode} -> No match.")
+            logger.info(f"⏭️ #{book.barcode} -> No match.")
 
         if not already_exists:
             entries_to_create.append(item)

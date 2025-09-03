@@ -1,8 +1,7 @@
 import os
-import glob
-import click
+from loguru import logger
 
-from const import OUTPUT_PIPELINE_READY_FILEPATH
+from const import READY_CHECK_FILEPATH
 
 
 def needs_pipeline_ready(func):
@@ -13,8 +12,9 @@ def needs_pipeline_ready(func):
 
     def wrapper(*args, **kwargs):
         if not check_pipeline_readiness():
-            click.echo("Pipeline is not ready. Cannot run command.")
+            logger.error("Pipeline is not ready. Cannot run command.")
             exit(1)
+
         return func(*args, **kwargs)
 
     return wrapper
@@ -26,12 +26,12 @@ def set_pipeline_readiness(is_ready=True) -> bool:
     """
     # Mark as ready
     if is_ready:
-        with open(OUTPUT_PIPELINE_READY_FILEPATH, "w+") as file:
+        with open(READY_CHECK_FILEPATH, "w+") as file:
             file.write("READY")
 
     # Mark as not ready
-    if not is_ready and os.path.exists(OUTPUT_PIPELINE_READY_FILEPATH):
-        os.remove(OUTPUT_PIPELINE_READY_FILEPATH)
+    if not is_ready and os.path.exists(READY_CHECK_FILEPATH):
+        os.remove(READY_CHECK_FILEPATH)
 
     return is_ready
 
@@ -39,6 +39,6 @@ def set_pipeline_readiness(is_ready=True) -> bool:
 def check_pipeline_readiness() -> bool:
     """
     Checks whether the pipeline is ready to work with.
-    Main indicator: presence of a file at `OUTPUT_OUTPUT_PIPELINE_READY_FILEPATH`.
+    Main indicator: presence of a file at `OUTPUT_READY_CHECK_FILEPATH`.
     """
-    return os.path.exists(OUTPUT_PIPELINE_READY_FILEPATH)
+    return os.path.exists(READY_CHECK_FILEPATH)

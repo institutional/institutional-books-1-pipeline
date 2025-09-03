@@ -2,14 +2,13 @@ from pathlib import Path
 import pickle
 
 import click
-from model2vec.distill import distill
-from model2vec.train import StaticModelForClassification
 from slugify import slugify
+from loguru import logger
 
 import utils
 from models import OCRPostprocessingTrainingDataset
 from models.ocr_postprocessing_training_dataset import TARGET_TYPES
-from const import DATETIME_SLUG, OUTPUT_MODELS_DIR_PATH
+from const import DATETIME_SLUG, MODELS_DIR_PATH
 
 
 @click.command("step02-train-and-evaluate-model")
@@ -30,8 +29,12 @@ def step02_train_and_evaluate_model(source_model_name: str):
 
     The resulting model allows for detecting the "type" (`OCRPostprocessingTrainingDataset.TARGET_TYPE`) of each line of OCR'd text.
     """
+    # Slow imports
+    from model2vec.distill import distill
+    from model2vec.train import StaticModelForClassification
+
     model_filepath = Path(
-        OUTPUT_MODELS_DIR_PATH,
+        MODELS_DIR_PATH,
         f"{slugify(source_model_name.split("/")[1])}-ocr-postprocessing-{DATETIME_SLUG}.pickle",
     )
 
@@ -47,7 +50,7 @@ def step02_train_and_evaluate_model(source_model_name: str):
     #
     # Prepare training dataset
     #
-    click.echo(f"🏋️ Compiling training set ...")
+    logger.info(f"Compiling training set ...")
 
     for entry in (
         OCRPostprocessingTrainingDataset.select()
@@ -66,19 +69,19 @@ def step02_train_and_evaluate_model(source_model_name: str):
             test_split_texts.append(training_repr)
             test_split_labels.append(target_type)
 
-    click.echo(f"- Train split: {len(train_split_texts)} entries.")
-    click.echo(f"- Test split: {len(test_split_texts)} entries.")
+    logger.info(f"Train split: {len(train_split_texts)} entries")
+    logger.info(f"Test split: {len(test_split_texts)} entries")
 
     #
     # Distill model
     #
-    click.echo(f"⚗️ Distilling {source_model_name} with Model2Vec ...")
+    logger.info(f"Distilling {source_model_name} with Model2Vec ...")
     distilled = distill(source_model_name, quantize_to="float16")
 
     #
     # Train classifier
     #
-    click.echo(f"🏋️ Fine-tuning {source_model_name} distill as a classifier ...")
+    logger.info(f"Fine-tuning {source_model_name} distill as a classifier ...")
     classifier = StaticModelForClassification.from_static_model(model=distilled)
 
     classifier = classifier.fit(
@@ -91,7 +94,7 @@ def step02_train_and_evaluate_model(source_model_name: str):
     #
     # Evaluating classifier
     #
-    click.echo(f"🏋️ Evaluating classifier ...")
+    logger.info(f"Evaluating classifier ...")
 
     classification_report = classifier.evaluate(
         test_split_texts,
@@ -105,4 +108,4 @@ def step02_train_and_evaluate_model(source_model_name: str):
     #
     with open(model_filepath, "wb+") as fd:
         pickle.dump(classifier, fd)
-    click.echo(f"✅ {model_filepath.name} saved to disk.")
+    logger.info(f"{model_filepath.name} saved to disk")

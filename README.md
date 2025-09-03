@@ -10,6 +10,7 @@ The Institutional Data Initiative's pipeline for analyzing, refining, and publis
 ## Summary 
 - [Getting started](#getting-started)
 - [Available utilities](#available-utilities)
+- [Custom Exclusion List](#custom-exclusion-list)
 - [CLI: Common options](#cli-common-options)
 - [CLI: `setup`](#cli-setup)
 - [CLI: `analyze`](#cli-analyze)
@@ -23,11 +24,17 @@ The Institutional Data Initiative's pipeline for analyzing, refining, and publis
 
 ## Getting started 
 
-**Machine-level dependencies:**
-- [Python 3.12](https://python.org)
-- [Python Poetry](https://python-poetry.org/) (recommended)
+### Machine-level dependencies
+- [uv](https://docs.astral.sh/uv/)
 - [SQLite 3.32.0+](https://www.sqlite.org/)
 
+### Access to a Google Books Collection
+
+This pipeline was built and optimized to process a Google Books collection retrieved using [GRIN Transfer](https://github.com/institutional/grin-transfer) and stored on cloud storage.
+
+See [GRIN Transfer](https://github.com/institutional/grin-transfer) documentation for details.
+
+### Step by step setup
 ```bash
 # Clone project
 git clone https://github.com/instdin/institutional-books-1-pipeline.git
@@ -37,14 +44,15 @@ git clone https://github.com/instdin/institutional-books-1-pipeline.git
 bash install.sh
 
 # Edit environment variables
+# We recommend increasing `CACHE_MAX_SIZE_IN_GB` significantly if possible (e.g: 1000 Gb)
 nano .env # (or any text editor)
 
-# Open python environment and pull source data / build the local database
-poetry shell # OR, for newer versions of poetry: eval $(poetry env activate)
-python pipeline.py setup build # Must be run at least once!
+# Run commands
+uv run pipeline.py command options
+uv run pipeline.py --verbose command options # Run command and include debug logs
 ```
 
-**Commands are grouped as follows:**
+### Command groups
 - **setup**: Pipeline setup and corpus I/O (for example: downloading and indexing a local copy of  the collection).
 - **analyze**: Analysis of the data present in the collection. Results are stored in the database.
 - **process**: Processing and/or augmentation of data from the collection.
@@ -59,32 +67,32 @@ python pipeline.py setup build # Must be run at least once!
 
 The following code excerpt presents some of the utilities this codebase makes available to work with the collection. 
 
-These are fairly specific to the way raw materials are currently organized on our storage backend, generated using our experimental tool for extracting a collection out of Google Books' backend. 
-
 This codebase uses [Peewee as an ORM](https://docs.peewee-orm.com/en/latest/) to manage a [SQLite](https://www.sqlite.org/) database.
 
 ```python
+from dotenv import load_dotenv
+load_dotenv()
+
 import utils
-from models import BookIO, BookRawData
+from models import BookIO
+from models.book_io import BookTarballData
+
 
 # `BookIO` is a Peewee model for the "book_io" table.
 # See Peewee's documentation for more info on how to work with models:
 # https://docs.peewee-orm.com/en/latest/
 
-# Retrieving an individual book by barcode
+# Retrieving an individual volume record by barcode
 book = book.get(barcode="ABCDEF")
 
-# Google-provided OCR text by page (list)
+# Google-provided OCR text by page (pulled from remote storage or disk cache)
 text: list[str] = book.text_by_page
 
-# Metadata from xyz-books.csv (random access from disk)
-csv_data: dict = book.csv_data
-
-# Metadata and OCR text from xyz-0001.jsonl (random access fron disk)
-jsonl_data: dict = book.jsonl_data
+# Metadata from books_latest.csv (pulled from remote storage or disk cache)
+metadata: dict = book.metadata
 
 # Scans, OCR data, text exports and metadata and checksum extracted from barcode.tar.gz (pulled on the fly and cached)
-raw_data: BookRawData = book.raw_data
+parsed_tarball: BookTarballData = book.parsed_tarball
 
 # Iterating over the collection
 for book in Book.select().iterator():
@@ -95,6 +103,34 @@ db = utils.get_db()
 ```
 
 All [models](/models/) cross-reference `BookIO` via a `book` foreign key.
+
+[👆 Back to the summary](#summary)
+
+---
+
+## Custom exclusion list
+
+By default, this pipeline uses [HathiTrust's rights determination records](https://www.hathitrust.org/the-collection/preservation/rights-database/) to help determine the current rights determination status of each volume in the current collection.
+
+If your collection is not present on HathiTrust, or if you would like to use your own rights determination data, it is possible to provide a custom exclusion list instead.
+
+**In `.env`, replace `PD_FILTERING_MECHANISM` with `LIST`:**
+```bash
+PD_FILTERING_MECHANISM="LIST"
+```
+
+**Create a file named `pd-exclusion-list.txt` in your `data/` folder:**
+
+One barcode per line.
+```
+ABCD1234
+EFGH5678
+IJKL9123
+```
+
+The barcodes listed in `pd-exclusion-list.txt` will be considered non public domain / not permissively licensed.
+
+With that configuration, every feature requiring a rights determination check will use the list provided via `pd-exclusion-list.txt` to determine whether a given volume should be included or not.
 
 [👆 Back to the summary](#summary)
 
@@ -125,14 +161,20 @@ Here are common options:
 <details>
 <summary><h3>setup build</h3></summary>
 
-Initializes the pipeline: 
-- Creates the local database and its tables.
-- Downloads source files from the output of `grin-to-s3`, hosted on S3 or R2.
-- Indexes records within individual CSV and JSONL files so `BookIO` can perform fast random access on any barcode.
+Initializes the pipeline:
+- Sets up the local database
+- Pulls information about the collection from cloud storage (output of GRIN Transfer)
+- Indexes individual volumes as `BookIO` records
+- Caches text from individual volume on disk
+
+Notes:
+- Can be run every time remote storage is updated. Updates existing records.
+- Update runs do not delete volumes that may have disapeared from `books_latest.csv` (unlikely)
 
 ```bash
-python pipeline.py setup build
-python pipeline.py setup build --tables-only # Allows for only creating tables without populating them
+uv run pipeline.py setup build
+uv run pipeline.py setup build --skip-caching
+uv run pipeline.py setup --cache_limit=100000 # Only caches the text from the first 100,000 volumes
 ```
 </details>
 
@@ -142,7 +184,7 @@ python pipeline.py setup build --tables-only # Allows for only creating tables w
 Reports on the pipeline's status (database and cache size, etc ...).
 
 ```bash
-python pipeline.py setup status
+uv run pipeline.py setup status
 ```
 
 </details>
@@ -153,7 +195,7 @@ python pipeline.py setup status
 Clears local data. Asks for confirmation before deleting each top-level folder/item.
 
 ```bash
-python pipeline.py setup clear
+uv run pipeline.py setup clear
 ```
 
 </details>
@@ -170,11 +212,11 @@ python pipeline.py setup clear
 Collects genre/form classification data for each book from the collection's metadata.
 
 Notes:
-- Extracted from `gxml Index Term-Genre/Form` (via `book.csv_data`).
+- Extracted from `MARC Genres` (via `book.metadata`).
 - Skips entries that were already analyzed, unless instructed otherwise.
 
 ```bash
-python pipeline.py analyze extract-genre-classification-from-metadata
+uv run pipeline.py analyze extract-genre-classification-from-metadata
 ```
 
 </details>
@@ -189,7 +231,7 @@ Notes:
 - Skips entries that were already analyzed, unless instructed otherwise.
 
 ```bash
-python pipeline.py analyze extract-hathitrust-rights-determination
+uv run pipeline.py analyze extract-hathitrust-rights-determination
 ```
 
 </details>
@@ -200,12 +242,12 @@ python pipeline.py analyze extract-hathitrust-rights-determination
 Collects book-level language data for each book from the collection's metadata.
 
 Notes:
-- Extracted from `gxml Language` (via `book.csv_data`)
+- Extracted from `MARC Language` (via `book.metadata`)
 - Original data is in ISO 639-2B format. This command stores it both in this format as well as ISO 639-3.
 - Skips entries that were already analyzed, unless instructed otherwise.
 
 ```bash
-python pipeline.py analyze extract-main-language-from-metadata
+uv run pipeline.py analyze extract-main-language-from-metadata
 ```
 
 </details>
@@ -216,11 +258,11 @@ python pipeline.py analyze extract-main-language-from-metadata
 Collects Google-provided OCR quality metrics for each book, as expressed in the collection's metadata.
 
 Notes:
-- Extracted from `OCR Analysis Score` (via `book.csv_data`).
+- Extracted from `GRIN OCR Analysis Score` (via `book.metadata`).
 - Skips entries that were already analyzed, unless instructed otherwise.
 
 ```bash
-python pipeline.py analyze extract-ocr-quality-from-metadata
+uv run pipeline.py analyze extract-ocr-quality-from-metadata
 ```
 
 </details>
@@ -229,14 +271,14 @@ python pipeline.py analyze extract-ocr-quality-from-metadata
 <summary><h3>analyze extract-page-count</h3></summary>
 
 Extracts the page count of each book, both:
-- as expressed in the collection's metadata (`Page Count` via `book.csv_data`)
+- as expressed in the collection's metadata (`Page Count` via `book.metadata`)
 - from the total of available pages in the OCR'd text
 
 Notes:
 - Skips entries that were already analyzed, unless instructed otherwise
 
 ```bash
-python pipeline.py analyze extract-page-count
+uv run pipeline.py analyze extract-page-count
 ```
 
 </details>
@@ -247,11 +289,11 @@ python pipeline.py analyze extract-page-count
 Collects topic/subject classification data for each book from the collection's metadata.
 
 Notes:
-- Extracted from `gxml Subject Added Entry-Topical Term` (via `book.csv_data`).
+- Extracted from `MARC Subjects` (via `book.metadata`).
 - Skips entries that were already analyzed, unless instructed otherwise.
 
 ```bash
-python pipeline.py analyze extract-topic-classification-from-metadata
+uv run pipeline.py analyze extract-topic-classification-from-metadata
 ```
 
 </details>
@@ -272,7 +314,7 @@ Notes:
 - See `export topic-classification-training-set` to export the results of this command.
 
 ```bash
-python pipeline.py analyze extract-topic-classification-training-dataset
+uv run pipeline.py analyze extract-topic-classification-training-dataset
 ```
 
 </details>
@@ -284,13 +326,13 @@ Collects, for each entry, the likely year of publication based on existing metad
 This is meant to be used for statistical analysis purposes only.
 
 Notes:
-- Extracted from either `gxml Date1 ` or `gxml Date 2` (via `book.csv_data`)
-- Entries with where `gxml Date Type` is either `Continuing resource` or `No attempt to code` will be skipped.
+- Extracted from either `MARC Date 1 ` or `MARC Date 2` (via `book.metadata`)
+- Entries with where `MARC Date Type` is either `Continuing resource` or `No attempt to code` will be skipped.
 - Incomplete years will be ignored (e.g: `19uu`, `1uuu`, `9999` ...)
 - Skips entries that were already analyzed, unless instructed otherwise.
 
 ```bash
-python pipeline.py analyze extract-year-of-publication-from-metadata
+uv run pipeline.py analyze extract-year-of-publication-from-metadata
 ```
 
 </details>
@@ -311,7 +353,7 @@ Notes:
 - Skips entries that were already analyzed, unless instructed otherwise.
 
 ```bash
-python pipeline.py analyze run-language-detection
+uv run pipeline.py analyze run-language-detection
 ```
 
 </details>
@@ -325,7 +367,7 @@ Notes:
 - Skips entries that were already analyzed, unless instructed otherwise
 
 ```bash
-python pipeline.py analyze run-ocr-quality-detection
+uv run pipeline.py analyze run-ocr-quality-detection
 ```
 
 </details>
@@ -339,7 +381,7 @@ Notes:
 - Skips entries that were already analyzed, unless instructed otherwise.
 
 ```bash
-python pipeline.py analyze run-simhash
+uv run pipeline.py analyze run-simhash
 ```
 
 </details>
@@ -358,7 +400,7 @@ Notes:
 - Skips entries that were already analyzed, unless instructed otherwise
 
 ```bash
-python pipeline.py analyze run-text-analysis
+uv run pipeline.py analyze run-text-analysis
 ```
 
 </details>
@@ -376,9 +418,9 @@ Notes:
 - A valid HuggingFace token might be needed to access some of the target tokenizers.
 
 ```bash
-python pipeline.py analyze run-token-count --target-llm="openai/gpt-4o"
-python pipeline.py analyze run-token-count --target-llm="mistralai/Mixtral-8x22B-Instruct-v0.1"
-python pipeline.py analyze run-token-count --target-llm="microsoft/phi-4"
+uv run pipeline.py analyze run-token-count --target-llm="openai/gpt-4o"
+uv run pipeline.py analyze run-token-count --target-llm="mistralai/Mixtral-8x22B-Instruct-v0.1"
+uv run pipeline.py analyze run-token-count --target-llm="microsoft/phi-4"
 ```
 
 </details>
@@ -398,9 +440,9 @@ Benchmark mode:
 - Results of the benchmark will be saved as: `/data/output/export/topic-classification-benchmark-{model-name}-{datetime}.csv`
 
 ```bash
-python pipeline.py analyze run-topic-classification --benchmark-mode # 1000 benchmark entries
-python pipeline.py analyze run-topic-classification # Actual classification run
-python pipeline.py analyze run-topic-classification --device # Allows for specifying on which torch device the model should run
+uv run pipeline.py analyze run-topic-classification --benchmark-mode # 1000 benchmark entries
+uv run pipeline.py analyze run-topic-classification # Actual classification run
+uv run pipeline.py analyze run-topic-classification --device # Allows for specifying on which torch device the model should run
 ```
 
 </details>
@@ -431,8 +473,8 @@ Notes:
 - 10% of the pages are set aside to build a test set.
 
 ```bash
-python pipeline.py process ocr-postprocessing step01-generate-training-dataset
-python pipeline.py process ocr-postprocessing step01-generate-training-dataset --n-samples=1000
+uv run pipeline.py process ocr-postprocessing step01-generate-training-dataset
+uv run pipeline.py process ocr-postprocessing step01-generate-training-dataset --n-samples=1000
 ```
 
 ### Step 02 - Train and evaluate model
@@ -484,7 +526,7 @@ Saved as:
 - `/data/output/export/overview-{datetime}.csv`
 
 ```bash
-python pipeline.py export stats overview
+uv run pipeline.py export stats overview
 ```
 
 </details>
@@ -499,7 +541,7 @@ Saved as:
 - `/data/output/export/deduplication-eval-sheet-{n-samples}-{datetime}.csv`
 
 ```bash
-python pipeline.py export misc deduplication-eval-sheet --n-samples=1000
+uv run pipeline.py export misc deduplication-eval-sheet --n-samples=1000
 ```
 
 </details>
@@ -513,8 +555,8 @@ Saved as:
 - `/data/output/export/simplified-source-metadata-{pd}-{datetime}.csv`
 
 ```bash
-python pipeline.py export misc simplified-source-metadata
-python pipeline.py export misc simplified-source-metadata --pd-only
+uv run pipeline.py export misc simplified-source-metadata
+uv run pipeline.py export misc simplified-source-metadata --include-non-pd
 ```
 
 </details>
@@ -531,7 +573,7 @@ Saved as:
 - `/data/output/export/topic-classification-training-dataset-{set}-{datetime}.csv`
 
 ```bash
-python pipeline.py export misc topic-classification-training-dataset
+uv run pipeline.py export misc topic-classification-training-dataset
 ```
 
 </details>
@@ -555,8 +597,9 @@ Notes:
 - Dataset target name is adjusted automatically.
 
 ```bash
-python pipeline.py publish hf generate
-python pipeline.py publish hf generate --include-text # Full dataset text_by_page_xyz fields
+uv run pipeline.py publish hf generate
+uv run pipeline.py publish hf generate --include-text # Full dataset text_by_page_xyz fields
+uv run pipeline.py publish hf generate --include-non-pd # Includes volumes that were not flagged as public domain or permissively licensed
 ```
 
 </details>
@@ -574,8 +617,8 @@ Notes:
 - Dataset target name is adjusted automatically.
 
 ```bash
-python pipeline.py publish hf push
-python pipeline.py publish hf push --include-text # Full dataset text_by_page_xyz fields
+uv run pipeline.py publish hf push
+uv run pipeline.py publish hf push --include-text # Full dataset text_by_page_xyz fields
 ```
 
 </details>
@@ -592,14 +635,14 @@ Notes:
 - Dataset target name is adjusted automatically.
 
 ```bash
-python pipeline.py publish hf check-integrity
-python pipeline.py publish hf check-integrity --include-text # Full dataset text_by_page_xyz fields
+uv run pipeline.py publish hf check-integrity
+uv run pipeline.py publish hf check-integrity --include-text # Full dataset text_by_page_xyz fields
 ```
 
 </details>
 
 <details>
-<summary><h3>HuggingFace output format</h3></summary>
+<summary><h3>Output format</h3></summary>
 
 #### Suffixes
 | Suffix | Description
@@ -680,7 +723,41 @@ _Both dicts are shaped as follows when available:_
 | `rights_code` | String | [Hathitrust's rights determination code](https://www.hathitrust.org/the-collection/preservation/rights-database/#:~:text=for%20open%20access-,Attributes,-Attributes). |
 | `reason_code` | String | [Hathitrust's rights determination reason code](https://www.hathitrust.org/the-collection/preservation/rights-database/#:~:text=note%20for%20details-,Reasons,-Rights%20code%20reasons). |
 | `last_check` | String | Date at which that information was pulled from the Hathitrust API. |
+
 </details>
+
+### Note
+While this pipeline's `publish` feature is optimized for the HuggingFace Hub, it is possible to use it to upload to other platforms.
+
+To do so, start by:
+- Populating `HF_DATASET_NAME_METADATA` and `HF_DATASET_NAME_FULL` with a dataset name of your choice
+- Running `publish hf generate`
+
+This process will generate and store an [Arrow](https://arrow.apache.org/docs/python/index.html) version of the dataset on disk. 
+It then becomes possible to access and process it as desired (conversion to parquet or JSONL, chunking, export to cloud storage, etc ...).
+
+```python
+# This can be a file at the root of the project, or a new command.
+from pathlib import Path 
+
+from dotenv import load_dotenv
+load_dotenv()
+
+from datasets import load_from_disk
+
+import utils
+from const import HF_DATASET_DIR_PATH
+
+dataset_name = os.getenv("HF_DATASET_NAME_FULL") # Or HF_DATASET_NAME_METADATA 
+dataset_path = Path(HF_DATASET_DIR_PATH, dataset_name)
+
+dataset = load_from_disk(dataset_path)
+
+for record in dataset:
+    # Then: Chunking, conversion, upload ..
+    # See example: commands/publish.hf/push.py 
+    # HuggingFace Dataset docs: https://huggingface.co/docs/datasets/en/index
+```
 
 ---
 

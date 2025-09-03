@@ -6,25 +6,12 @@ import pickle
 from datetime import datetime
 
 import click
-from model2vec.inference import StaticModelPipeline
-from model2vec.train import StaticModelForClassification
-
+from loguru import logger
 
 import utils
-from models import (
-    BookIO,
-    OCRPostprocessingTrainingDataset,
-    HathitrustRightsDetermination,
-    MainLanguage,
-    PageCount,
-)
+from models import BookIO, OCRPostprocessingTrainingDataset
 from models.ocr_postprocessing_training_dataset import TARGET_TYPES
-from const import (
-    OUTPUT_MODELS_DIR_PATH,
-    OUTPUT_OCR_POSTPROCESSING_DIR_PATH,
-    HATHITRUST_PD_CODES,
-    HATHITRUST_PD_STRING,
-)
+from const import MODELS_DIR_PATH, OCR_POSTPROCESSING_DIR_PATH
 
 LINE_BREAKING_PUNCTUATION_REGEX = r"([.!;:?])"
 """ Regex focusing on characters that can be considered "line-breaking" in certain contexts. """
@@ -74,7 +61,6 @@ ENDS_WITH_DASHES_REGEX = r"[-‐‑‒–—―−⸺⸻﹘﹣－]$"
     help="Determines how many threads can be run in parallel.",
 )
 @utils.needs_pipeline_ready
-@utils.needs_hathitrust_rights_determination_data
 @utils.needs_page_count_data
 @utils.needs_language_detection_data
 def step03_process(
@@ -105,10 +91,10 @@ def step03_process(
     # Check that classifier file exists
     #
     try:
-        assert Path(OUTPUT_MODELS_DIR_PATH, f"{classifier_name}.pickle").exists()
+        assert Path(MODELS_DIR_PATH, f"{classifier_name}.pickle").exists()
     except Exception:
-        click.echo(traceback.format_exc())
-        click.echo(f"Fine-tuned classifier {classifier_name} does not exist. Interrupting.")
+        logger.debug(traceback.format_exc())
+        logger.error(f"Fine-tuned classifier {classifier_name} does not exist. Interrupting.")
         exit(1)
 
     #
@@ -132,23 +118,14 @@ def step03_process(
         ):
 
             # Add book if it matches criteria (language selection, PD)
-            main_language = None
-            rights_determination = None
-
             main_language = book.mainlanguage_set[0]
-            rights_determination = book.hathitrustrightsdetermination_set[0]
 
             assert main_language
-            assert rights_determination
 
             if main_language.from_detection_iso639_3 not in languages:
                 continue
 
-            try:
-                assert rights_determination.rights_code in HATHITRUST_PD_CODES
-                assert rights_determination.us_rights_string == HATHITRUST_PD_STRING
-            except:
-                continue
+            assert utils.is_pd(book)
 
             batch.append(book)
 
@@ -163,7 +140,7 @@ def step03_process(
             try:
                 future.result()
             except Exception as err:
-                click.echo(traceback.format_exc())
+                logger.debug(traceback.format_exc())
                 executor.shutdown(wait=False, cancel_futures=True)
                 raise err
 
@@ -172,7 +149,10 @@ def process_batch(books: list[BookIO], classifier_name: str, overwrite: bool = F
     """
     Processes a batch of books.
     """
-    classifier_filepath = Path(OUTPUT_MODELS_DIR_PATH, f"{classifier_name}.pickle")
+    # Slow imports
+    from model2vec.train import StaticModelForClassification
+
+    classifier_filepath = Path(MODELS_DIR_PATH, f"{classifier_name}.pickle")
     classifier: StaticModelForClassification | None = None
     output = []
 
@@ -195,7 +175,7 @@ def process_batch(books: list[BookIO], classifier_name: str, overwrite: bool = F
 
 def process_book(
     book: BookIO,
-    classifier: StaticModelForClassification,
+    classifier,
     overwrite: bool = False,
 ) -> bool:
     """
@@ -204,7 +184,7 @@ def process_book(
     processing_start = datetime.now()
     processing_end = None
 
-    output_filepath = Path(OUTPUT_OCR_POSTPROCESSING_DIR_PATH, f"{book.barcode}.json")
+    output_filepath = Path(OCR_POSTPROCESSING_DIR_PATH, f"{book.barcode}.json")
 
     text_by_page = []
     stats = {target_type: 0 for target_type in TARGET_TYPES}
@@ -215,7 +195,7 @@ def process_book(
     if not overwrite:
         try:
             assert book.postprocessed_ocr
-            click.echo(f"⏭️ #{book.barcode} was already processed.")
+            logger.info(f"⏭#{book.barcode} was already processed")
             return False
         except:
             pass
@@ -266,7 +246,7 @@ def process_book(
     #
     book.postprocessed_ocr = {"stats": stats, "text_by_page": text_by_page}
     processing_end = datetime.now()
-    click.echo(f"✅ {output_filepath.name} written to disk ({processing_end - processing_start})")
+    logger.info(f"{output_filepath.name} written to disk ({processing_end - processing_start})")
 
     return True
 

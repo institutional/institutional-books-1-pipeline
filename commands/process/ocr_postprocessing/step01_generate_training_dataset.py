@@ -7,19 +7,13 @@ import re
 import click
 import peewee
 import ollama
+from loguru import logger
 
 
 import utils
-from models import (
-    BookIO,
-    OCRPostprocessingTrainingDataset,
-    HathitrustRightsDetermination,
-    MainLanguage,
-    TextAnalysis,
-    PageCount,
-)
+from models import BookIO, OCRPostprocessingTrainingDataset
 from models.ocr_postprocessing_training_dataset import TARGET_TYPES
-from const import HATHITRUST_PD_CODES, HATHITRUST_PD_STRING
+import utils
 
 TARGET_MODEL = "phi4:14b-q8_0"
 """ Model used for generating classification data. """
@@ -71,7 +65,6 @@ Carefully analyze the information you are given to accurately determine the type
     help="Determines how many threads can be run in parallel.",
 )
 @utils.needs_pipeline_ready
-@utils.needs_hathitrust_rights_determination_data
 @utils.needs_page_count_data
 @utils.needs_text_analysis_data
 @utils.needs_language_detection_data
@@ -103,7 +96,7 @@ def step01_generate_training_dataset(
     test_count = 0
 
     if n_samples < 10:
-        click.echo("Cannot generate a set with less than 10 samples.")
+        logger.error("Cannot generate a set with less than 10 samples")
         exit(1)
 
     #
@@ -139,7 +132,6 @@ def step01_generate_training_dataset(
 
         main_language = book.mainlanguage_set[0]
         text_analysis = book.textanalysis_set[0]
-        rights_determination = book.hathitrustrightsdetermination_set[0]
 
         if main_language.from_detection_iso639_3 not in languages:
             continue
@@ -147,10 +139,7 @@ def step01_generate_training_dataset(
         if text_analysis.word_count <= 1000:
             continue
 
-        try:
-            assert rights_determination.rights_code in HATHITRUST_PD_CODES
-            assert rights_determination.us_rights_string == HATHITRUST_PD_STRING
-        except:
+        if not utils.is_pd(book):
             continue
 
         books.append(book)
@@ -204,17 +193,17 @@ def step01_generate_training_dataset(
                 books_chunks[barcode] = chunks
 
                 for chunk in chunks:
-                    click.echo(f"#{barcode} | {chunk.get_training_repr()} -> {chunk.target_type}")
+                    logger.info(f"#{barcode} | {chunk.get_training_repr()} -> {chunk.target_type}")
 
                 utils.process_db_write_batch(OCRPostprocessingTrainingDataset, chunks, [], [])
 
             except Exception:
-                click.echo(traceback.format_exc())
-                click.echo("Could not generate OCR postprocessing training set. Interrupting.")
+                logger.debug(traceback.format_exc())
+                logger.error("Could not generate OCR postprocessing training set. Interrupting.")
                 executor.shutdown(wait=False, cancel_futures=True)
                 exit(1)
 
-    click.echo("✅ OCR postprocessing training set ready.")
+    logger.info("OCR postprocessing training set ready")
 
 
 def process_page_chunks(chunks: list[OCRPostprocessingTrainingDataset]):
@@ -248,8 +237,8 @@ def process_page_chunks(chunks: list[OCRPostprocessingTrainingDataset]):
         try:
             assign_ocr_chunk_type(current, previous, next)
         except Exception:
-            click.echo(traceback.format_exc())
-            click.echo(
+            logger.debug(traceback.format_exc())
+            logger.warning(
                 f"Couldn't generate training data for chunk {current.get_training_repr()}. Skipping."
             )
 
@@ -306,7 +295,7 @@ def assign_ocr_chunk_type(
         prompt = prompt.replace("- PAGE_NUMBER\n", "")
 
     # Run completion
-    response = ollama_client.ChatResponse = ollama_client.chat(
+    response = ollama_client.chat(
         model=TARGET_MODEL,
         messages=[
             {"role": "system", "content": prompt},

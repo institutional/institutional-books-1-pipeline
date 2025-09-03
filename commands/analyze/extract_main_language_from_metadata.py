@@ -1,5 +1,6 @@
 import click
 import iso639
+from loguru import logger
 
 import utils
 from models import BookIO, MainLanguage
@@ -42,7 +43,7 @@ def extract_main_language_from_metadata(
     Collects book-level language data for each book from the collection's metadata.
 
     Notes:
-    - Extracted from `gxml Language` (via `book.csv_data`).
+    - Extracted from `MARC Language` (via `book.metadata`).
     - Original data is in ISO 639-2B format. This command stores it both in this format as well as ISO 639-3.
     - Skips entries that were already analyzed, unless instructed otherwise.
     """
@@ -68,7 +69,7 @@ def extract_main_language_from_metadata(
             already_exists = True
 
             if already_exists and not overwrite:
-                click.echo(f"⏭️ #{book.barcode} already analyzed.")
+                logger.info(f"#{book.barcode} already analyzed")
                 continue
         except Exception:
             pass
@@ -76,15 +77,15 @@ def extract_main_language_from_metadata(
         # Prepare record
         main_language = MainLanguage() if not already_exists else main_language
         main_language.book = book.barcode
-        main_language.metadata_source = "gxml Language"
+        main_language.metadata_source = "MARC Language"
 
         try:
-            gxml_language = iso639.Lang(pt2b=book.csv_data["gxml Language"])
+            gxml_language = iso639.Lang(pt2b=book.metadata["MARC Language"])
             main_language.from_metadata_iso639_2b = gxml_language.pt2b
             main_language.from_metadata_iso639_3 = gxml_language.pt3
-            click.echo(f"🧮 #{book.barcode} = {gxml_language.pt3} (metadata)")
+            logger.info(f"#{book.barcode} = {gxml_language.pt3} (metadata)")
         except Exception:
-            click.echo(f"🧮 #{book.barcode} - no valid language info.")
+            logger.warning(f"#{book.barcode} - no valid language info.")
 
         # Add to batch
         if already_exists:

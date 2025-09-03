@@ -2,10 +2,11 @@ import csv
 from pathlib import Path
 
 import click
+from loguru import logger
 
 import utils
 from models import TopicClassificationTrainingDataset
-from const import OUTPUT_EXPORT_DIR_PATH, DATETIME_SLUG
+from const import EXPORT_DIR_PATH, DATETIME_SLUG
 
 
 @click.command("topic-classification-training-dataset")
@@ -22,7 +23,7 @@ def topic_classification_training_dataset():
     """
     for set in ["train", "test", "benchmark"]:
         output_filepath = Path(
-            OUTPUT_EXPORT_DIR_PATH,
+            EXPORT_DIR_PATH,
             f"topic-classification-training-dataset-{set}-{DATETIME_SLUG}.csv",
         )
 
@@ -44,4 +45,4 @@ def topic_classification_training_dataset():
 
                 writer.writerow([text, target])
 
-            click.echo(f"✅ {output_filepath.name} saved to disk.")
+            logger.info(f"{output_filepath.name} saved to disk")

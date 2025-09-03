@@ -6,6 +6,7 @@ import click
 from peewee import fn
 import numpy as np
 import humanize
+from loguru import logger
 
 import utils
 from models import (
@@ -26,11 +27,11 @@ from models import (
     OCRPostProcessingTextAnalysis,
 )
 from const import (
-    OUTPUT_EXPORT_DIR_PATH,
+    EXPORT_DIR_PATH,
     DATETIME_SLUG,
     HATHITRUST_PD_CODES,
     HATHITRUST_PD_STRING,
-    OUTPUT_OCR_POSTPROCESSING_DIR_PATH,
+    OCR_POSTPROCESSING_DIR_PATH,
 )
 
 
@@ -44,7 +45,7 @@ def overview():
     Saved as:
     - `/data/output/export/overview-{datetime}.csv`
     """
-    output_filepath = Path(OUTPUT_EXPORT_DIR_PATH, f"overview-{DATETIME_SLUG}.csv")
+    output_filepath = Path(EXPORT_DIR_PATH, f"overview-{DATETIME_SLUG}.csv")
 
     with open(output_filepath, "w+") as fd:
         writer = csv.writer(fd)
@@ -53,7 +54,7 @@ def overview():
         page_count_stats(writer)
         main_language_stats(writer)
         language_detection_stats(writer)
-        rights_determination_stats(writer)
+        hathitrust_rights_determination_stats(writer)
         year_of_publication_stats(writer)
         ocr_quality_stats(writer)
         deduplication_stats(writer)
@@ -62,7 +63,7 @@ def overview():
         topic_classification_stats(writer)
         ocr_postprocessing_stats(writer)
 
-    click.echo(f"✅ {output_filepath.name} saved to disk.")
+    logger.info(f"{output_filepath.name} saved to disk")
 
 
 def insert_section(writer: csv.writer, title: str):
@@ -95,7 +96,7 @@ def books_stats(writer: csv.writer):
     insert_row(
         writer,
         "Total books with scans",
-        PageCount.select().where(PageCount.count_from_metadata > 0).count(),
+        PageCount.select().where(PageCount.count_from_ocr > 0).count(),
     )
 
     insert_row(
@@ -214,7 +215,7 @@ def page_count_stats(writer: csv.writer):
 
     page_count_bins = np.logspace(
         np.log10(10),
-        np.log10(PageCount.select(fn.MAX(PageCount.count_from_metadata)).scalar()),
+        np.log10(PageCount.select(fn.MAX(PageCount.count_from_ocr)).scalar()),
         16,
     )
 
@@ -231,8 +232,8 @@ def page_count_stats(writer: csv.writer):
             (
                 PageCount.select()
                 .where(
-                    PageCount.count_from_metadata >= start,
-                    PageCount.count_from_metadata < end,
+                    PageCount.count_from_ocr >= start,
+                    PageCount.count_from_ocr < end,
                 )
                 .count()
             ),
@@ -344,11 +345,11 @@ def main_language_stats(writer: csv.writer):
         )
 
 
-def rights_determination_stats(writer: csv.writer):
+def hathitrust_rights_determination_stats(writer: csv.writer):
     """
     Writes rights determination-related stats to CSV.
     """
-    insert_section(writer, "RIGHTS DETERMINATION - OVERVIEW")
+    insert_section(writer, "HATHITRUST RIGHTS DETERMINATION - OVERVIEW")
 
     insert_row(
         writer,
@@ -388,7 +389,7 @@ def rights_determination_stats(writer: csv.writer):
                 HathitrustRightsDetermination.rights_code.in_(HATHITRUST_PD_CODES),
                 HathitrustRightsDetermination.us_rights_string == HATHITRUST_PD_STRING,
                 HathitrustRightsDetermination.book.in_(
-                    PageCount.select(PageCount.book).where(PageCount.count_from_metadata > 0)
+                    PageCount.select(PageCount.book).where(PageCount.count_from_ocr > 0)
                 ),
             )
             .count()
@@ -417,7 +418,7 @@ def rights_determination_stats(writer: csv.writer):
     #
     # Breakdown
     #
-    insert_section(writer, "RIGHTS DETERMINATION - BREAKDOWN BY RIGHTS CODE")
+    insert_section(writer, "HATHITRUST RIGHTS DETERMINATION - BREAKDOWN BY RIGHTS CODE")
 
     for item in (
         HathitrustRightsDetermination.select(
@@ -435,7 +436,7 @@ def rights_determination_stats(writer: csv.writer):
             item.rights_code,
         )
 
-    insert_section(writer, "RIGHTS DETERMINATION - BREAKDOWN BY RIGHTS REASON")
+    insert_section(writer, "HATHITRUST RIGHTS DETERMINATION - BREAKDOWN BY RIGHTS REASON")
 
     for item in (
         HathitrustRightsDetermination.select(
@@ -1090,7 +1091,7 @@ def ocr_postprocessing_stats(writer: csv.writer):
     insert_row(
         writer,
         "Total books with OCR postprocessing data",
-        len(glob.glob(f"{OUTPUT_OCR_POSTPROCESSING_DIR_PATH}/*.json")),
+        len(glob.glob(f"{OCR_POSTPROCESSING_DIR_PATH}/*.json")),
     )
 
     # Detection stats

@@ -1,4 +1,5 @@
 import click
+from loguru import logger
 
 import utils
 from models import BookIO, OCRQuality
@@ -41,7 +42,7 @@ def extract_ocr_quality_from_metadata(
     Collects Google-provided OCR quality metrics for each book, as expressed in the collection's metadata.
 
     Notes:
-    - Extracted from `OCR Analysis Score` (via `book.csv_data`).
+    - Extracted from `GRIN OCR Analysis Score` (via `book.metadata`).
     - Skips entries that were already analyzed, unless instructed otherwise.
     """
     entries_to_create = []
@@ -65,7 +66,7 @@ def extract_ocr_quality_from_metadata(
             already_exists = True
 
             if already_exists and not overwrite:
-                click.echo(f"⏭️ #{book.barcode} already analyzed.")
+                logger.info(f"#{book.barcode} already analyzed")
                 continue
         except Exception:
             pass
@@ -73,17 +74,17 @@ def extract_ocr_quality_from_metadata(
         # Prepare record
         ocr_quality = OCRQuality() if not already_exists else ocr_quality
         ocr_quality.book = book.barcode
-        ocr_quality.metadata_source = "OCR Analysis Score"
+        ocr_quality.metadata_source = "GRIN OCR Analysis Score"
 
-        from_metadata = book.csv_data["OCR Analysis Score"]
+        from_metadata = book.metadata["GRIN OCR Analysis Score"]
 
         try:
             ocr_quality.from_metadata = int(from_metadata)
             assert from_metadata is not None
             ocr_quality.from_metadata = from_metadata
-            click.echo(f"🧮 #{book.barcode} = {from_metadata} (metadata)")
+            logger.info(f"#{book.barcode} = {from_metadata} (metadata)")
         except:
-            click.echo(f"🧮 #{book.barcode} - no valid OCR Analysis score info.")
+            logger.warning(f"#{book.barcode} - no valid GRIN OCR Analysis Score info")
 
         # Add to batch
         if already_exists:

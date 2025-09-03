@@ -4,6 +4,7 @@ from datetime import datetime
 import random
 
 import click
+from loguru import logger
 
 import utils
 from models import BookIO, TopicClassification, TopicClassificationTrainingDataset
@@ -262,7 +263,7 @@ def extract_topic_classification_training_dataset():
     try:
         assert BookIO.select().count() == TopicClassification.select().count()
     except:
-        click.echo("This command needs metadata-based topic classification data.")
+        logger.error("This command needs metadata-based topic classification data")
         exit(1)
 
     # Delete existing set
@@ -300,7 +301,7 @@ def extract_topic_classification_training_dataset():
     # Assign each record to a set, save
     #
     if len(full_set) < 15_000:
-        click.echo(
+        logger.error(
             f"Did not find enough suitable items in the collection to generate a training set. "
             + f"(min: 15,000, found: {len(full_set)})."
         )
@@ -323,4 +324,4 @@ def extract_topic_classification_training_dataset():
         [],
     )
 
-    click.echo(f"✅ Topic classification training set saved ({len(full_set)} entries).")
+    logger.info(f"Topic classification training set saved ({len(full_set)} entries)")

@@ -4,6 +4,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import click
 from simhash import Simhash
+from loguru import logger
 
 from utils import (
     needs_pipeline_ready,
@@ -103,8 +104,8 @@ def run_simhash(
             try:
                 future.result()
             except Exception:
-                click.echo(traceback.format_exc())
-                click.echo("Could not run simhash on OCR'd texts. Interrupting.")
+                logger.debug(traceback.format_exc())
+                logger.error("Could not run simhash on OCR'd texts. Interrupting.")
                 executor.shutdown(wait=False, cancel_futures=True)
                 exit(1)
 
@@ -133,7 +134,7 @@ def process_books_batch(
             already_exists = True
 
             if already_exists and not overwrite:
-                click.echo(f"⏭️ #{book.barcode} already analyzed.")
+                logger.info(f"#{book.barcode} already analyzed")
                 continue
         except Exception:
             pass
@@ -147,9 +148,9 @@ def process_books_batch(
         if merged_text.strip():
             hash = Simhash(get_simhash_shingles(merged_text, simhash_shingle_width))
             scanned_text_simhash.hash = hash.value
-            click.echo(f"🧮 #{book.barcode} = {hash.value}")
+            logger.info(f"#{book.barcode} = {hash.value}")
         else:
-            click.echo(f"⏭️ #{book.barcode} does not have text.")
+            logger.warning(f"#{book.barcode} does not have text")
 
         # Add to batch
         if already_exists:

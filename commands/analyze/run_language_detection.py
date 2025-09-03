@@ -10,6 +10,7 @@ from pyfranc import franc
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 import utils
+from loguru import logger
 from models import BookIO, MainLanguage, LanguageDetection
 
 TOKENIZER_NAME = "o200k_base"
@@ -85,8 +86,8 @@ def run_language_detection(
             try:
                 future.result()
             except Exception:
-                click.echo(traceback.format_exc())
-                click.echo("Could not detect languages in scanned texts. Interrupting.")
+                logger.debug(traceback.format_exc())
+                logger.error("Could not detect languages in scanned texts. Interrupting.")
                 executor.shutdown(wait=False, cancel_futures=True)
                 exit(1)
 
@@ -116,7 +117,7 @@ def process_book(
 
     # Stop here if we don't have text
     if not full_text.strip():
-        click.echo(f"⏭️ #{book.barcode} does not have text.")
+        logger.warning(f"#{book.barcode} does not have text")
         return True
 
     # Stop here if overwrite is `False` and we've laready processed this record
@@ -124,7 +125,7 @@ def process_book(
         not overwrite
         and LanguageDetection.select().where(LanguageDetection.book == book.barcode).count()
     ):
-        click.echo(f"⏭️ #{book.barcode} already analyzed.")
+        logger.info(f"#{book.barcode} already analyzed")
         return True
 
     tokenizer = tiktoken.get_encoding(TOKENIZER_NAME)
@@ -217,5 +218,5 @@ def process_book(
 
     # Save records
     utils.process_db_write_batch(LanguageDetection, entries_to_create, [], [])
-    click.echo(f"🧮 #{book.barcode} processed in {datetime.now() - start_datetime}.")
+    logger.info(f"#{book.barcode} processed in {datetime.now() - start_datetime}")
     return True

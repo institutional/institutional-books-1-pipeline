@@ -1,4 +1,5 @@
 import click
+from loguru import logger
 
 import utils
 from models import BookIO, GenreClassification
@@ -41,7 +42,7 @@ def extract_genre_classification_from_metadata(
     Collects genre/form classification data for each book from the collection's metadata.
 
     Notes:
-    - Extracted from `gxml Index Term-Genre/Form` (via `book.csv_data`).
+    - Extracted from `MARC Genres` (via `book.metadata`).
     - Skips entries that were already analyzed, unless instructed otherwise.
     """
     entries_to_create = []
@@ -65,7 +66,7 @@ def extract_genre_classification_from_metadata(
             already_exists = True
 
             if already_exists and not overwrite:
-                click.echo(f"⏭️ #{book.barcode} already analyzed.")
+                logger.info(f"#{book.barcode} already analyzed")
                 continue
         except Exception:
             pass
@@ -73,15 +74,15 @@ def extract_genre_classification_from_metadata(
         # Prepare record
         genre_classification = GenreClassification() if not already_exists else genre_classification
         genre_classification.book = book.barcode
-        genre_classification.metadata_source = "gxml Index Term-Genre/Form"
+        genre_classification.metadata_source = "MARC Genres"
 
-        from_metadata = book.csv_data["gxml Index Term-Genre/Form"]
+        from_metadata = book.metadata["MARC Genres"]
 
         if from_metadata.strip():
             genre_classification.from_metadata = from_metadata
-            click.echo(f"🧮 #{book.barcode} = {from_metadata} (metadata)")
+            logger.info(f"#{book.barcode} = {from_metadata} (metadata)")
         else:
-            click.echo(f"🧮 #{book.barcode} - no valid genre/form info.")
+            logger.warning(f"#{book.barcode} - no valid genre/form info")
 
         # Add to batch
         if already_exists:
