@@ -28,7 +28,7 @@ The Institutional Data Initiative's pipeline for analyzing, refining, and publis
 - [uv](https://docs.astral.sh/uv/)
 - [SQLite 3.32.0+](https://www.sqlite.org/)
 
-### Access to a Google Books Collection
+### GRIN Transfer
 
 This pipeline was built and optimized to process a Google Books collection retrieved using [GRIN Transfer](https://github.com/institutional/grin-transfer) and stored on cloud storage.
 
