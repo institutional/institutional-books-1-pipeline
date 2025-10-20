@@ -6,17 +6,11 @@ import os
 import click
 import peewee
 import humanize
+from loguru import logger
 
 import utils
 import models
-from const import (
-    TABLES,
-    OUTPUT_DATABASE_DIR_PATH,
-    OUTPUT_DATABASE_FILENAME,
-    INPUT_DIR_PATH,
-    INPUT_JSONL_DIR_PATH,
-    INPUT_CSV_DIR_PATH,
-)
+from const import DATABASE_DIR_PATH, DATABASE_FILENAME
 
 
 @click.command("status")
@@ -36,41 +30,25 @@ def status():
     _print_section_heading("Pipeline status")
 
     if utils.check_pipeline_readiness():
-        click.echo("✅ The pipeline is ready.")
+        logger.info("The pipeline is ready.")
     else:
-        click.echo("🛑 The pipeline is NOT ready.")
-        click.echo("-- Run `setup build` command")
-        exit(0)
+        logger.error("The pipeline is NOT ready. Run `setup build` command.")
+        exit(1)
 
     #
     # Database
     #
     _print_section_heading("Database status")
 
-    db_size = Path(OUTPUT_DATABASE_DIR_PATH, OUTPUT_DATABASE_FILENAME).stat().st_size
+    db_size = Path(DATABASE_DIR_PATH, DATABASE_FILENAME).stat().st_size
     print(f"Database size: {humanize.naturalsize(db_size)}")
 
-    for table_name, model_name in TABLES.items():
+    available_models = [model_name for model_name in dir(models) if model_name[0].isupper()]
+
+    for model_name in available_models:
         model: peewee.Model = models.__getattribute__(model_name)
+        table_name = model._meta.table_name
         click.echo(f"Table {table_name}: {humanize.intcomma(model.select().count())} record(s)")
-
-    #
-    # Input folder size
-    #
-    _print_section_heading("Size of the collection")
-
-    jsonl_total_size = 0
-    csv_total_size = 0
-
-    for filepath in glob.glob(f"{INPUT_JSONL_DIR_PATH}/*.jsonl"):
-        jsonl_total_size += Path(filepath).stat().st_size
-
-    for filepath in glob.glob(f"{INPUT_CSV_DIR_PATH}/*.csv"):
-        csv_total_size += Path(filepath).stat().st_size
-
-    click.echo(f"Total size: {humanize.naturalsize(jsonl_total_size + csv_total_size)}")
-    click.echo(f"JSONL: {humanize.naturalsize(jsonl_total_size)}")
-    click.echo(f"CSV: {humanize.naturalsize(csv_total_size)}")
 
     #
     # Resources

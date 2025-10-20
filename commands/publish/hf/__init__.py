@@ -1,15 +1,24 @@
+import os
+
 import click
 from datasets import Dataset, Features, Value, Sequence
+from loguru import logger
 
 from .generate import generate
 from .push import push
 from .check_integrity import check_integrity
+import utils
 
 
 @click.group("hf")
 def hf():
     """Command group: publish > hf."""
-    pass
+    if (
+        not os.getenv("HF_DATASET_NAME_METADATA", "").strip()
+        or not os.getenv("HF_DATASET_NAME_FULL", "").strip()
+    ):
+        logger.error("`HF_DATASET_NAME_METADATA` and `HF_DATASET_NAME_FULL` env vars must be set.")
+        exit(1)
 
 
 hf.add_command(generate)
@@ -79,6 +88,7 @@ HF_DATASET_FEATURES = Features(
             "isbn": Sequence(Value("string")),
             "ocolc": Sequence(Value("string")),
         },
+        # Automatically removed if PD_FILTERING_MECHANISM is not "HATHITRUST"
         "hathitrust_data_ext": {
             "url": Value("string"),
             "rights_code": Value("string"),
@@ -92,6 +102,7 @@ HF_DATASET_FEATURES = Features(
 """ 
     HuggingFace features for this dataset. 
     `text_by_page_xyz` columns are removed in metadata-only mode. 
+    `hathitrust_data_ext` column is removed if HathiTrust is not used as a source of rights determination data.
 """
 
 
@@ -100,6 +111,7 @@ def get_hf_row_from_book(
     likely_duplicates: dict,
     pd_only=True,
     include_text=False,
+    include_hathitrust_data=False,
 ) -> dict | None:
     """
     Processes a book into a HuggingFace dataset row matching HF_DATASET_FEATURES.
@@ -108,7 +120,6 @@ def get_hf_row_from_book(
     - `likely_duplicates`: output of `utils.get_filtered_duplicates()`.
     """
     from models import (
-        BookIO,
         HathitrustRightsDetermination,
         LanguageDetection,
         TokenCount,
@@ -116,9 +127,6 @@ def get_hf_row_from_book(
         OCRPostProcessingTextAnalysis,
     )
 
-    from const import HATHITRUST_PD_CODES, HATHITRUST_PD_STRING
-
-    rights_determination: HathitrustRightsDetermination = None
     token_count_o200k_base: int = 0
 
     row = {}
@@ -127,16 +135,8 @@ def get_hf_row_from_book(
     #
     # Skip if book is not PD
     #
-    if pd_only:
-        rights_determination = book.hathitrustrightsdetermination_set[0]
-
-        assert rights_determination
-
-        try:
-            assert rights_determination.rights_code in HATHITRUST_PD_CODES
-            assert rights_determination.us_rights_string == HATHITRUST_PD_STRING
-        except:
-            return None
+    if pd_only and not utils.is_pd(book):
+        return None
 
     #
     # Skip book if they have no text (token_count < 100)
@@ -170,8 +170,8 @@ def get_hf_row_from_book(
     #
     row["title_src"] = " ".join(
         [
-            book.csv_data["gxml Title"].strip(),
-            book.csv_data["gxml Title Remainder"].strip(),
+            book.metadata["MARC Title"].strip(),
+            book.metadata["MARC Title Remainder"].strip(),
         ]
     ).strip()
 
@@ -180,17 +180,17 @@ def get_hf_row_from_book(
 
     row["author_src"] = " ".join(
         [
-            book.csv_data["gxml Author (Personal Name)"].strip(),
-            book.csv_data["gxml Author (Corporate Name)"].strip(),
-            book.csv_data["gxml Author (Meeting Name)"].strip(),
+            book.metadata["MARC Author Personal"].strip(),
+            book.metadata["MARC Author Corporate"].strip(),
+            book.metadata["MARC Author Meeting"].strip(),
         ]
     ).strip()
 
     if row["author_src"] and row["author_src"][-1] == ",":
         row["author_src"] = row["author_src"][:-1].strip()
 
-    row["date1_src"] = book.csv_data["gxml Date 1"].strip()
-    row["date2_src"] = book.csv_data["gxml Date 2"].strip()
+    row["date1_src"] = book.metadata["MARC Date 1"].strip()
+    row["date2_src"] = book.metadata["MARC Date 2"].strip()
 
     if not row["date1_src"]:
         row["date1_src"] = None
@@ -198,9 +198,9 @@ def get_hf_row_from_book(
     if not row["date2_src"]:
         row["date2_src"] = None
 
-    row["date_types_src"] = book.csv_data["gxml Date Type"]
+    row["date_types_src"] = book.metadata["MARC Date Type"]
 
-    row["general_note_src"] = book.csv_data["gxml General Note"]
+    row["general_note_src"] = book.metadata["MARC General Note"]
 
     #
     # Language(s)
@@ -265,7 +265,7 @@ def get_hf_row_from_book(
     #
     # Text analysis (from source and OCR postprocessing)
     #
-    row["page_count_src"] = book.pagecount_set[0].count_from_metadata
+    row["page_count_src"] = book.pagecount_set[0].count_from_ocr
     row["token_count_o200k_base_gen"] = token_count_o200k_base
 
     ta_src: TextAnalysis = book.textanalysis_set[0]
@@ -305,29 +305,32 @@ def get_hf_row_from_book(
     row["identifiers_src"] = {}
 
     row["identifiers_src"]["lccn"] = [
-        lccn.strip()
-        for lccn in book.csv_data["gxml Library of Congress Control Number"].split(",")
-        if lccn.strip()
+        lccn.strip() for lccn in book.metadata["MARC LCCN"].split(",") if lccn.strip()
     ]
 
     row["identifiers_src"]["isbn"] = [
-        isbn.strip() for isbn in book.csv_data["gxml ISBN"].split(",") if isbn.strip()
+        isbn.strip() for isbn in book.metadata["MARC ISBN"].split(",") if isbn.strip()
     ]
 
     row["identifiers_src"]["ocolc"] = [
-        ocolc.strip() for ocolc in book.csv_data["gxml OCoLC Number(s)"].split(",") if ocolc.strip()
+        ocolc.strip() for ocolc in book.metadata["MARC OCLC Numbers"].split(",") if ocolc.strip()
     ]
 
     # Hathitrust data
-    hathitrust_data_ext = {}
+    if include_hathitrust_data:
+        hathitrust_data_ext = {}
 
-    hathitrust_data_ext["url"] = f"https://hdl.handle.net/2027/{rights_determination.htid}"
-    hathitrust_data_ext["rights_code"] = rights_determination.rights_code
-    hathitrust_data_ext["reason_code"] = rights_determination.reason_code
+        try:
+            rights_determination = book.hathitrustrightsdetermination_set[0]
+            hathitrust_data_ext["url"] = f"https://hdl.handle.net/2027/{rights_determination.htid}"
+            hathitrust_data_ext["rights_code"] = rights_determination.rights_code
+            hathitrust_data_ext["reason_code"] = rights_determination.reason_code
 
-    hathitrust_data_ext["last_check"] = rights_determination.retrieved_date.isoformat()
-    hathitrust_data_ext["last_check"] = hathitrust_data_ext["last_check"][0:10]
+            hathitrust_data_ext["last_check"] = rights_determination.retrieved_date.isoformat()
+            hathitrust_data_ext["last_check"] = hathitrust_data_ext["last_check"][0:10]
+        except:
+            pass
 
-    row["hathitrust_data_ext"] = hathitrust_data_ext
+        row["hathitrust_data_ext"] = hathitrust_data_ext
 
     return row

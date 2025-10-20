@@ -4,9 +4,10 @@ import traceback
 
 import click
 from ocroscope import ocr_evaluation
+from loguru import logger
 
 import utils
-from models import BookIO, OCRQuality
+from models import OCRQuality
 
 
 @click.command("run-ocr-quality-detection")
@@ -68,7 +69,7 @@ def run_ocr_quality_detection(
                 futures.append(future)
                 batch = []
 
-        # Run them in parallel processes, update records as they come back
+        # Run batches in parallel
         for future in as_completed(futures):
             try:
                 items = future.result()
@@ -81,8 +82,8 @@ def run_ocr_quality_detection(
                 )
 
             except Exception:
-                click.echo(traceback.format_exc())
-                click.echo("Could not detect OCR quality in scanned texts. Interrupting.")
+                logger.debug(traceback.format_exc())
+                logger.error("Could not detect OCR quality in scanned texts. Interrupting.")
                 executor.shutdown(wait=False, cancel_futures=True)
                 exit(1)
 
@@ -100,7 +101,7 @@ def process_batch(items: list[OCRQuality]) -> list[OCRQuality]:
         text = ocr_quality.book.merged_text
 
         if not text.strip():
-            click.echo(f"⏭️ #{ocr_quality.book.barcode} does not have text.")
+            logger.info(f"#{ocr_quality.book.barcode} does not have text")
             continue
 
         try:
@@ -108,8 +109,8 @@ def process_batch(items: list[OCRQuality]) -> list[OCRQuality]:
             analysis.calculate_ocr_rate()
             ocr_quality.from_detection = int(analysis.ratio_segment)
             ocr_quality.detection_source = "pleias/OCRoscope"
-            click.echo(f"🧮 #{ocr_quality.book.barcode} = {ocr_quality.from_detection}")
+            logger.info(f"#{ocr_quality.book.barcode} = {ocr_quality.from_detection}")
         except:
-            click.echo(f"⏭️ #{ocr_quality.book.barcode} could not be analyzed.")
+            logger.warning(f"#{ocr_quality.book.barcode} could not be analyzed")
 
     return items

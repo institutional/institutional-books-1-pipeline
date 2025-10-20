@@ -10,9 +10,8 @@ if command -v apt >/dev/null 2>&1; then
     sudo apt install protobuf-compiler pkg-config libicu-dev sqlite3
 fi
 
-# Poetry dependencies
-poetry env use 3.12;
-poetry install;
+# Python / uv
+uv python install 3.12;
 
 # .env file
 cp .env.example .env;

@@ -3,15 +3,15 @@ from pathlib import Path
 
 import peewee
 
-from const import OUTPUT_DATABASE_DIR_PATH, OUTPUT_DATABASE_FILENAME
+from const import DATABASE_DIR_PATH, DATABASE_FILENAME
 
 
 def get_db() -> peewee.SqliteDatabase:
     """
     Creates and returns a connection to the local SQLite database.
     """
-    os.makedirs(OUTPUT_DATABASE_DIR_PATH, exist_ok=True)
-    db_filepath = Path(OUTPUT_DATABASE_DIR_PATH, OUTPUT_DATABASE_FILENAME)
+    os.makedirs(DATABASE_DIR_PATH, exist_ok=True)
+    db_filepath = Path(DATABASE_DIR_PATH, DATABASE_FILENAME)
 
     db = peewee.SqliteDatabase(
         str(db_filepath),

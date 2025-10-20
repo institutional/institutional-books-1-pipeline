@@ -5,11 +5,11 @@ from datetime import datetime
 
 import click
 from slugify import slugify
-from transformers import pipeline
+from loguru import logger
 
 import utils
 from models import BookIO, TopicClassification, TopicClassificationTrainingDataset
-from const import OUTPUT_EXPORT_DIR_PATH, DATETIME_SLUG
+from const import EXPORT_DIR_PATH, DATETIME_SLUG
 
 MODEL_NAME = "institutional/institutional-books-topic-classifier-bert"
 
@@ -25,7 +25,7 @@ MODEL_NAME = "institutional/institutional-books-topic-classifier-bert"
     "--device",
     type=str,
     required=False,
-    help=f"If set, allows to specify on which device the model should run ({",".join(utils.get_torch_devices())}).",
+    help=f"If set, allows to specify on which device the model should run.",
 )
 @click.option(
     "--offset",
@@ -97,7 +97,7 @@ def run_topic_classification(
         # Existing records for each book in TopicClassification
         assert BookIO.select().count() == TopicClassification.select().count()
     except Exception:
-        click.echo("Topic classification dataset is not ready.")
+        logger.error("Topic classification dataset is not ready")
         exit(1)
 
     #
@@ -122,6 +122,8 @@ def run_on_collection(
     """
     Run classfication model against collection, update TopicClassification records.
     """
+    from transformers import pipeline  # Slow import
+
     pipe = pipeline("text-classification", model=MODEL_NAME, device=device)
 
     items_count = TopicClassification.select().offset(offset).limit(limit).count()
@@ -153,10 +155,10 @@ def run_on_collection(
 
             items_to_update.append(item)
 
-            click.echo(f"🧮 #{item.book.barcode} = {item.from_detection} from {item.from_metadata}")
+            logger.info(f"#{item.book.barcode} = {item.from_detection} from {item.from_metadata}")
         except Exception:
-            click.echo(traceback.format_exc())
-            click.echo(f"⏭️ Could not run classifier on #{item.book.barcode}. Skipping.")
+            logger.debug(traceback.format_exc())
+            logger.error(f"⏭️ Could not run classifier on #{item.book.barcode}. Skipping.")
 
         # Update database records in batches
         if len(items_to_update) >= db_write_batch_size or i >= items_count:
@@ -173,8 +175,8 @@ def run_benchmark(device: str | None):
     Runs the classification model against records set aside for benchmarking purposes.
     Yields benchmark scores and a summary sheet.
     """
-    click.echo("🥼 Running topic classification task in benchmark mode.")
-    click.echo(f"🧪 Target model: {MODEL_NAME}.")
+    logger.info("Running topic classification task in benchmark mode")
+    logger.info(f"🧪 Target model: {MODEL_NAME}")
 
     pipe = pipeline("text-classification", model=MODEL_NAME, device=device)
 
@@ -233,7 +235,7 @@ def run_benchmark(device: str | None):
     # Write to CSV
     #
     output_filepath = Path(
-        OUTPUT_EXPORT_DIR_PATH,
+        EXPORT_DIR_PATH,
         f"topic-classification-benchmark-{slugify(MODEL_NAME)}-{DATETIME_SLUG}.csv",
     )
 
@@ -242,12 +244,12 @@ def run_benchmark(device: str | None):
         writer.writerow(list(row_template.keys()))
         [writer.writerow(list(row.values())) for row in rows]
 
-    click.echo(f"✅ {output_filepath.name} saved to disk.")
+    logger.info(f"{output_filepath.name} saved to disk")
 
     #
     # Print stats
     #
-    click.echo(f"🧮 Total samples: {len(rows)}")
-    click.echo(f"✅ {total_valid} benchmark matches")
-    click.echo(f"⛔ {total_invalid} benchmark mistmatches")
-    click.echo(f"⏱️ Evaluation runtime: {end - start}")
+    logger.info(f"Total samples: {len(rows)}")
+    logger.info(f"{total_valid} benchmark matches")
+    logger.info(f"{total_invalid} benchmark mistmatches")
+    logger.info(f"Evaluation runtime: {end - start}")

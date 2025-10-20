@@ -124,7 +124,7 @@ class OCRPostprocessingTrainingDataset(peewee.Model):
             if book.pagecount_set:
                 item.total_pages = book.pagecount_set[0].count_from_ocr
             else:
-                item.total_pages = book.csv_data["Page Count"]
+                item.total_pages = len(book.text_by_page)
 
             item.line_number = i + 1
             item.total_lines = len(lines)
@@ -149,7 +149,7 @@ class OCRPostprocessingTrainingDataset(peewee.Model):
         if book.pagecount_set:
             total_pages = book.pagecount_set[0].count_from_ocr
         else:
-            total_pages = book.csv_data["Page Count"]
+            total_pages = len(book.text_by_page)
 
         for page_index in range(0, total_pages):
             chunks = cls.get_chunks_from_page(book, page_index)

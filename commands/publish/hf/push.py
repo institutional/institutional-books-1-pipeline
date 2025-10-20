@@ -1,3 +1,4 @@
+import os
 import traceback
 from pathlib import Path
 from io import BytesIO
@@ -8,10 +9,11 @@ import click
 from datasets import load_from_disk
 from slugify import slugify
 from huggingface_hub import HfApi
+from loguru import logger
 
 import utils
 from models import BookIO
-from const import HF_METADATA_ONLY_DATASET_NAME, HF_FULL_DATASET_NAME, OUTPUT_HF_DATASET_DIR_PATH
+from const import HF_DATASET_DIR_PATH
 
 
 @click.command("push")
@@ -42,11 +44,15 @@ def push(include_text: bool, skip_first_n: int | None):
     - Dataset target name is adjusted automatically.
     """
     hf = HfApi()
-    dataset_name = HF_FULL_DATASET_NAME if include_text else HF_METADATA_ONLY_DATASET_NAME
-    dataset_path = Path(OUTPUT_HF_DATASET_DIR_PATH, slugify(dataset_name))
+
+    dataset_name = (
+        os.getenv("HF_DATASET_NAME_FULL") if include_text else os.getenv("HF_DATASET_NAME_METADATA")
+    )
+
+    dataset_path = Path(HF_DATASET_DIR_PATH, slugify(dataset_name))
 
     if not click.confirm(f"👀 Do you really want to push {dataset_name} to the hub?"):
-        click.echo("Cancelled.")
+        logger.info("Cancelled")
         exit(0)
 
     #
@@ -61,12 +67,12 @@ def push(include_text: bool, skip_first_n: int | None):
     chunk_i = 0
     total_chunks = int(math.ceil(len(dataset) / chunk_size))
 
-    click.echo(f"ℹ️ Dataset will be split into {total_chunks} Parquet chards of {chunk_size} rows.")
+    logger.info(f"ℹDataset will be split into {total_chunks} Parquet chards of {chunk_size} rows")
 
     for slice_i in range(0, len(dataset), chunk_size):
 
         if skip_first_n and chunk_i < skip_first_n:
-            click.echo(f"⏩ Skipping slice {chunk_i}.")
+            logger.info(f"Skipping slice {chunk_i}")
             chunk_i += 1
             continue
 
@@ -77,7 +83,7 @@ def push(include_text: bool, skip_first_n: int | None):
         chunk.to_parquet(chunk_bytes)
 
         # Upload Parquet bytes
-        click.echo(f"⬆️ Uploading Parquet chunk {chunk_i} (Rows {slice_i} to {slice_ii})...")
+        logger.info(f"Uploading Parquet chunk {chunk_i} (Rows {slice_i} to {slice_ii}) ...")
         destination = f"data/train-{str(chunk_i).zfill(5)}-of-{str(total_chunks).zfill(5)}.parquet"
         uploaded = False
 
@@ -93,10 +99,10 @@ def push(include_text: bool, skip_first_n: int | None):
                 assert info
                 uploaded = True
             except Exception as err:
-                click.echo(traceback.format_exc())
-                click.echo(f"Failed to upload {destination}. Will retry in 1 minute ...")
+                logger.debug(traceback.format_exc())
+                logger.error(f"Failed to upload {destination}. Will retry in 1 minute ...")
                 time.sleep(60)
 
         chunk_i += 1
 
-    click.echo(f"✅ {dataset_name} was pushed to the hub.")
+    logger.info(f"{dataset_name} was pushed to the HuggingFace hub")

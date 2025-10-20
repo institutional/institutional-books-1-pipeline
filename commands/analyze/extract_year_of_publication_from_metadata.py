@@ -1,6 +1,7 @@
 import re
 
 import click
+from loguru import logger
 
 import utils
 from models import BookIO, YearOfPublication
@@ -44,8 +45,8 @@ def extract_year_of_publication_from_metadata(
     This is meant to be used for statistical analysis purposes only.
 
     Notes:
-    - Extracted from either `gxml Date1 ` or `gxml Date 2` (via `book.csv_data`).
-    - Entries with where `gxml Date Type` is either `Continuing resource` or `No attempt to code` will be skipped.
+    - Extracted from either `MARC Date 1 ` or `MARC Date 2` (via `book.metadata`).
+    - Entries with where `MARC Date Type` is either `Continuing resource` or `No attempt to code` will be skipped.
     - Incomplete years will be ignored (e.g: `19uu`, `1uuu`, `9999` ...).
     - Skips entries that were already analyzed, unless instructed otherwise.
     """
@@ -72,7 +73,7 @@ def extract_year_of_publication_from_metadata(
             already_exists = True
 
             if already_exists and not overwrite:
-                click.echo(f"⏭️ #{book.barcode} already analyzed.")
+                logger.info(f"#{book.barcode} already analyzed")
                 continue
         except Exception:
             pass
@@ -89,9 +90,9 @@ def extract_year_of_publication_from_metadata(
         year_of_publication.source_field = source_field
 
         if year:
-            click.echo(f"🧮 #{book.barcode} was likely published in {year} ({source_field})")
+            logger.info(f"#{book.barcode} was likely published in {year} ({source_field})")
         else:
-            click.echo(f"🧮 #{book.barcode} - no info on publication date.")
+            logger.warning(f"#{book.barcode} - no info on publication date")
 
         # Add to batch
         if already_exists:
@@ -129,19 +130,19 @@ def find_likely_publication_year(book: BookIO) -> tuple:
 
     year_regex = r"^[0-9]{4}$"
 
-    fields_to_check = ["gxml Date 1", "gxml Date 2"]
+    fields_to_check = ["MARC Date 1", "MARC Date 2"]
 
     # Do not make an assessment if:
-    # - "gxml Date Type" starts with "Continuing resource" (periodical, dates are for the whole journal)
-    if str(book.csv_data["gxml Date Type"]).startswith("Continuing resource"):
+    # - "MARC Date Type" starts with "Continuing resource" (periodical, dates are for the whole journal)
+    if str(book.metadata["MARC Date Type"]).startswith("Continuing resource"):
         return output
 
-    # - "gxml Date Type" contains "No attempt to code"
-    if str(book.csv_data["gxml Date Type"]).startswith("No attempt to code"):
+    # - "MARC Date Type" contains "No attempt to code"
+    if str(book.metadata["MARC Date Type"]).startswith("No attempt to code"):
         return output
 
     for field in fields_to_check:
-        year = book.csv_data[field]
+        year = book.metadata[field]
 
         if year is None:
             continue

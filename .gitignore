@@ -2,7 +2,7 @@
 *.pyc
 *__tmp.py
 *.env
-TODO.txt
+TODO.md
 *.jsonl
 *.json.tar.gz
 *.csv
@@ -10,3 +10,4 @@ TODO.txt
 *.txt
 tmp/
 data/
+test.py

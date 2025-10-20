@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-import datetime
+from datetime import datetime, timezone
 
 from slugify import slugify
 from dotenv import load_dotenv
@@ -13,128 +13,43 @@ load_dotenv()
 DATA_DIR_PATH = os.environ.get("DATA_DIR_PATH", "data/")
 """ Data directory: root path. """
 
-INPUT_DIR_PATH = Path(DATA_DIR_PATH, "input")
-""" Data input directory. """
+CACHE_DIR_PATH = Path(DATA_DIR_PATH, "cache")
 
-OUTPUT_DIR_PATH = Path(DATA_DIR_PATH, "output")
-""" Data output directory. """
+DATABASE_DIR_PATH = Path(DATA_DIR_PATH, "database")
 
-INPUT_JSONL_DIR_PATH = Path(INPUT_DIR_PATH, "jsonl")
-""" Data input directory: JSONL folder. """
+DATABASE_FILENAME = "database.db"
 
-INPUT_CSV_DIR_PATH = Path(INPUT_DIR_PATH, "csv")
-""" Data input directory: CSV folder. """
+EXPORT_DIR_PATH = Path(DATA_DIR_PATH, "export")
 
-INPUT_MISC_DIR_PATH = Path(INPUT_DIR_PATH, "misc")
-""" Data input directory: misc folder. Can be used for temporary files. """
+MODELS_DIR_PATH = Path(DATA_DIR_PATH, "models")
 
-INPUT_CACHE_DIR_PATH = Path(INPUT_DIR_PATH, "cache")
-""" Data input directory: misc folder. Is used by diskcache. """
+MISC_DIR_PATH = Path(DATA_DIR_PATH, "misc")
 
-OUTPUT_DATABASE_DIR_PATH = Path(OUTPUT_DIR_PATH, "database")
-""" Data output directory: database folder. """
+HF_DATASET_DIR_PATH = Path(DATA_DIR_PATH, "hf-dataset")
 
-OUTPUT_DATABASE_FILENAME = "database.db"
-""" Filename for the local database. """
+OCR_POSTPROCESSING_DIR_PATH = Path(DATA_DIR_PATH, "ocr-postprocessing")
 
-OUTPUT_EXPORT_DIR_PATH = Path(OUTPUT_DIR_PATH, "export")
-""" Data output directory: export folder. """
-
-OUTPUT_MODELS_DIR_PATH = Path(OUTPUT_DIR_PATH, "models")
-""" Data output directory: local models. """
-
-OUTPUT_MISC_DIR_PATH = Path(OUTPUT_DIR_PATH, "misc")
-""" Data output directory: misc folder. Can be used for temporary files. """
-
-OUTPUT_HF_DATASET_DIR_PATH = Path(OUTPUT_DIR_PATH, "hf-dataset")
-""" Data output directory: Local storage for the finalized, HuggingFace-ready dataset. """
-
-OUTPUT_OCR_POSTPROCESSING_DIR_PATH = Path(OUTPUT_DIR_PATH, "ocr-postprocessing")
-""" Data output directory: OCR postprocessing files. """
+PD_EXCLUSION_LIST_FILEPATH = Path(DATA_DIR_PATH, "pd-exclusion-list.txt")
 
 #
 # Pipeline ready check
 #
-OUTPUT_PIPELINE_READY_FILEPATH = Path(DATA_DIR_PATH, "ready.check")
+READY_CHECK_FILEPATH = Path(DATA_DIR_PATH, "ready.check")
 """ File used to indicate that the data is ready to be analyzed. Written by `data build`. """
-
-#
-# Target tranche settings
-#
-GRIN_TO_S3_TRANCHES = [
-    "VIEW_FULL",
-    "VIEW_SNIPPET",
-    "VIEW_NONE",
-    "VIEW_METADATA",
-    "MISSING",
-]
-""" GRIN TO S3: Available tranches. """
-
-GRIN_TO_S3_TRANCHES_TO_BUCKET_NAMES = {
-    "VIEW_FULL": "gbooks-primary",
-    "VIEW_SNIPPET": "gbooks-clearance",
-    "VIEW_NONE": "gbooks-clearance",
-    "VIEW_METADATA": "gbooks-clearance",
-    "MISSING": "gbooks-clearance",
-}
-""" 
-    GRIN TO S3: Available tranches and buckets hosting them. 
-    Add "raw-" after "gbooks-" to access the buckets with raw data. 
-"""
-
-GRIN_TO_S3_BUCKET_NAMES_TO_TRANCHES = {
-    "gbooks-primary": ["VIEW_FULL"],
-    "gbooks-clearance": ["VIEW_SNIPPET", "VIEW_NONE", "VIEW_METADATA", "MISSING"],
-}
-""" 
-    GRIN TO S3: Available buckets and the tranches they host. 
-    Add "raw-" after "gbooks-" to access the buckets with raw data. 
-"""
-
-GRIN_TO_S3_BUCKET_VERSION_PREFIX = "v2"
-""" GRIN TO S3: Version of the export to be used. Determines path for files (i.e: v1/jsonl/foo.jsonl) """
 
 #
 # Misc
 #
 DATETIME_SLUG = datetime_slug = slugify(
-    datetime.datetime.utcnow().isoformat(sep=" ", timespec="minutes"),
+    datetime.now(timezone.utc).isoformat(sep=" ", timespec="minutes")
 )
 """ Datetime slug. Hoisted at `const` level for convenience. """
 
-TABLES = {
-    "book_io": "BookIO",
-    "token_count": "TokenCount",
-    "page_count": "PageCount",
-    "year_of_publication": "YearOfPublication",
-    "main_language": "MainLanguage",
-    "topic_classification": "TopicClassification",
-    "genre_classification": "GenreClassification",
-    "ocr_quality": "OCRQuality",
-    "scanned_text_simhash": "ScannedTextSimhash",
-    "language_detection": "LanguageDetection",
-    "text_analysis": "TextAnalysis",
-    "topic_classification_training_dataset": "TopicClassificationTrainingDataset",
-    "hathitrust_rights_determination": "HathitrustRightsDetermination",
-    "ocr_postprocessing_training_dataset": "OCRPostprocessingTrainingDataset",
-    "ocr_postprocessing_text_analysis": "OCRPostProcessingTextAnalysis",
-}
-""" Mapping: Table names to Model class name. """
-
 DEFAULT_SIMHASH_SHINGLE_WIDTH = 7
 """ Default size of Simhash shingles. """
-
-HATHITRUST_COLLECTION_PREFIX = "hvd"
-""" Collection prefix for this Google Books collection on Hathitrust. Used to match records."""
 
 HATHITRUST_PD_CODES = ["pd", "pdus", "cc-zero"]
 """ Values of Hathitrust's "rights_code" field that match with public domain. """
 
 HATHITRUST_PD_STRING = "Full view"
 """ Value of Hathitrust's "us_rights_string" field that match with full online access. """
-
-HF_METADATA_ONLY_DATASET_NAME = "institutional/institutional-books-1.0-metadata"
-""" Name of the metadata-only on HuggingFace. """
-
-HF_FULL_DATASET_NAME = "institutional/institutional-books-1.0"
-""" Name of the full dataset on HuggingFace. """

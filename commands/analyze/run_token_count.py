@@ -4,6 +4,7 @@ import multiprocessing
 
 import click
 import tiktoken
+from loguru import logger
 
 import utils
 from models import BookIO, TokenCount
@@ -88,11 +89,11 @@ def run_token_count(
             tokenizer = AutoTokenizer.from_pretrained(target_llm)
             tokenizer_name = tokenizer.name_or_path
     except Exception:
-        click.echo(traceback.format_exc())
-        click.echo(f"Could not load tokenizer for model {target_llm}. Interrupting.")
+        logger.debug(traceback.format_exc())
+        logger.error(f"Could not load tokenizer for model {target_llm}. Interrupting.")
         exit(1)
 
-    click.echo(f"🤖 Target LLM: {target_llm}, tokenizer: {tokenizer_name}")
+    logger.info(f"Target LLM: {target_llm}, tokenizer: {tokenizer_name}")
 
     #
     # Count token for each record
@@ -112,7 +113,7 @@ def run_token_count(
             already_exists = True
 
             if already_exists and not overwrite:
-                click.echo(f"⏭️ #{book.barcode} {tokenizer_name} already exists.")
+                logger.info(f"#{book.barcode} {tokenizer_name} already exists")
                 continue
         except Exception:
             pass
@@ -140,7 +141,7 @@ def run_token_count(
         token_count.tokenizer = tokenizer_name
         token_count.count = total
 
-        click.echo(f"🧮 #{book.barcode} + {tokenizer_name} = {total} tokens.")
+        logger.info(f"#{book.barcode} + {tokenizer_name} = {total} tokens")
 
         # Add to batch
         if already_exists:

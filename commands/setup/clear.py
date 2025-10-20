@@ -1,13 +1,13 @@
 from shutil import rmtree
 
 import click
+from loguru import logger
 
 import utils
 from const import (
-    INPUT_DIR_PATH,
-    OUTPUT_DATABASE_DIR_PATH,
-    OUTPUT_EXPORT_DIR_PATH,
-    OUTPUT_MISC_DIR_PATH,
+    DATABASE_DIR_PATH,
+    EXPORT_DIR_PATH,
+    MISC_DIR_PATH,
 )
 
 
@@ -19,24 +19,24 @@ def clear():
     anything_was_deleted = False
 
     if click.confirm("Delete local database"):
-        rmtree(OUTPUT_DATABASE_DIR_PATH)
+        rmtree(DATABASE_DIR_PATH)
         anything_was_deleted = True
-        click.echo(f"✅ {OUTPUT_DATABASE_DIR_PATH} was cleared")
+        logger.info(f"{DATABASE_DIR_PATH} was cleared")
 
-    if click.confirm("Delete exported data"):
-        rmtree(OUTPUT_EXPORT_DIR_PATH)
+    if click.confirm(f"Delete exported data ({EXPORT_DIR_PATH})"):
+        rmtree(EXPORT_DIR_PATH)
         anything_was_deleted = True
-        click.echo(f"✅ {OUTPUT_EXPORT_DIR_PATH} was cleared")
+        logger.info(f"{EXPORT_DIR_PATH} was cleared")
 
-    if click.confirm("Delete misc output data"):
-        rmtree(OUTPUT_MISC_DIR_PATH)
+    if click.confirm(f"Delete misc output data ({MISC_DIR_PATH})"):
+        rmtree(MISC_DIR_PATH)
         anything_was_deleted = True
-        click.echo(f"✅ {OUTPUT_MISC_DIR_PATH} was cleared")
+        logger.info(f"{MISC_DIR_PATH} was cleared")
 
-    if click.confirm("Delete local copy of the collection"):
-        rmtree(INPUT_DIR_PATH)
-        anything_was_deleted = True
-        click.echo(f"✅ {INPUT_DIR_PATH} was cleared")
+    if click.confirm("Clear disk cache"):
+        with utils.get_cache() as cache:
+            cache.clear()
+        logger.info(f"Disk cache was cleared")
 
     # Mark pipeline as not ready if anything was deleted
     if anything_was_deleted:

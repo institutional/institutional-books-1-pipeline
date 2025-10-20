@@ -4,25 +4,21 @@ import csv
 from pathlib import Path
 import tarfile
 from dataclasses import dataclass
-from io import BytesIO
+from io import BytesIO, TextIOWrapper
+import gzip
 
 import peewee
 import orjson
+from loguru import logger
 
 from utils import get_db, get_cache, get_s3_client
-from const import (
-    INPUT_JSONL_DIR_PATH,
-    INPUT_CSV_DIR_PATH,
-    GRIN_TO_S3_TRANCHES_TO_BUCKET_NAMES,
-    GRIN_TO_S3_BUCKET_VERSION_PREFIX,
-    OUTPUT_OCR_POSTPROCESSING_DIR_PATH,
-)
+from const import OCR_POSTPROCESSING_DIR_PATH
 
 
 @dataclass(repr=True)
-class BookRawData:
+class BookTarballData:
     """
-    Holds data parsed from a .tar.gz file containg a book's raw data (scans, OCR metadata ...)
+    Holds data parsed from a Google Books tarball containg a volume's raw data (scans, OCR metadata ...)
     """
 
     images: list[bytes]
@@ -35,7 +31,7 @@ class BookRawData:
     """ Strings for all raw text files available for the selected book, indexed by page order. (.txt files)"""
 
     gxml: str
-    """ String for the main GXML file available for teh selected book. (.xml file) """
+    """ String for the main GXML file available for teh selected book. (Google-flavored METS XML file) """
 
     md5: list[tuple[str, str]]
     """ Data parsed from checksum.md5. """
@@ -43,19 +39,18 @@ class BookRawData:
 
 class BookIO(peewee.Model):
     """
-    `book_io` table: Organizes information about each JSONL entry (individual books).
-    Stores offset information to allow for random access.
+    `book_io` table: Organizes information about each volume present in the collection.
     """
 
     def __init__(self, *args, **kwargs):
         super(BookIO, self).__init__(*args, **kwargs)
-        self.__jsonl_data = None
-        self.__csv_data = None
-        self.__raw_data = None
+        self.__text_by_page = None
+        self.__metadata = None
+        self.__parsed_tarball = None
         self.__postprocessed_ocr = None
 
     __book_csv_headers = None
-    """ Class-level cache for the headers of "books.csv"."""
+    """ In-memory, class-level cache for the headers of "books.csv"."""
 
     class Meta:
         table_name = "book_io"
@@ -69,168 +64,193 @@ class BookIO(peewee.Model):
         primary_key=True,
     )
 
-    tranche = peewee.CharField(
-        max_length=32,
-        unique=False,
-        index=True,
-    )
-    """ Current tranche (Google Books Viewability status) for that book. """
-
-    jsonl_file_number = peewee.IntegerField(
-        null=True,
-        unique=False,
-        index=True,
-    )
-    """ If filename is VIEW_FULL-0214.jsonl, this number is 214. """
-
-    jsonl_offset = peewee.BigIntegerField(
+    metadata_csv_offset = peewee.BigIntegerField(
         null=True,
         unique=False,
         index=False,
     )
-    """ Used to position file cursor in JSONL file. Marks beginning of entry within JSONL file. """
+    """ Used to position file cursor within books_latest.csv. Marks beginning of entry within CSV file. """
 
-    csv_offset = peewee.BigIntegerField(
+    archive_is_available = peewee.BooleanField(
         null=True,
         unique=False,
-        index=False,
+        index=True,
     )
-    """ Used to position file cursor in CSV file. Marks beginning of entry within CSV file. """
 
-    @property
-    def jsonl_data(self):
-        """
-        Getter for __jsonl_data.
-        Automatically loads data from appropriate JSONL if available
-        """
-        if (
-            not self.__jsonl_data
-            and self.jsonl_file_number is not None
-            and self.jsonl_offset is not None
-        ):
-            jsonl_filepath = os.path.join(
-                INPUT_JSONL_DIR_PATH,
-                f"{self.tranche}-{self.jsonl_file_number:04}.jsonl",
-            )
-
-            with open(jsonl_filepath, "r+") as jsonl_file:
-                jsonl_file.seek(self.jsonl_offset)
-
-                line = jsonl_file.readline()
-                self.__jsonl_data = json.loads(line)
-
-        return self.__jsonl_data
-
-    @jsonl_data.setter
-    def jsonl_data(self, value):
-        self.__jsonl_data = value
-
-    @property
-    def csv_data(self):
-        """
-        Getter for __csv_data.
-        Automatically loads data from appropriate CSV if available
-        """
-        csv_filepath = Path(INPUT_CSV_DIR_PATH, f"{self.tranche}-books.csv")
-
-        # Load __book_csv_headers cache if not set
-        # NOTE: This assumes every single CSV in the collection has the same set of headers.
-        # We know that to be true, but is a pretty important assumption.
-        if not BookIO.__book_csv_headers:
-            with open(csv_filepath, "r+") as csv_file:
-                headers = csv_file.readline()
-                BookIO.__book_csv_headers = csv.reader([headers]).__next__()
-
-        if not self.__csv_data and self.csv_offset:
-            with open(csv_filepath, "r+") as csv_file:
-                csv_file.seek(self.csv_offset)
-                csv_line = csv_file.readline()
-
-                csv_data = csv.DictReader([csv_line], BookIO.__book_csv_headers).__next__()
-                self.__csv_data = csv_data
-
-        return self.__csv_data
-
-    @csv_data.setter
-    def csv_data(self, value):
-        self.__csv_data = value
+    metadata_is_enriched = peewee.BooleanField(
+        null=True,
+        unique=False,
+        index=True,
+    )
 
     @property
     def text_by_page(self) -> list[str]:
         """
-        Returns the full OCR'd text of the current book as a list of strings.
+        Getter for `__text_by_page`: OCR'd test for the current volume.
+        Underlying JSONL file will be loaded from remote storage or disk cache.
         """
-        return self.jsonl_data["text_by_page"]
+        if self.archive_is_available == False:
+            return []
+
+        if self.__text_by_page is not None:
+            return self.__text_by_page
+
+        jsonl_bytes = None
+
+        run_name = os.getenv("GRIN_DATA_RUN_NAME")
+        bucket_name = os.getenv("GRIN_DATA_FULL_BUCKET")
+        is_gz = os.getenv("GRIN_DATA_FULL_IS_COMPRESSED", "1") == "1"
+        filename = f"{self.barcode}_ocr.jsonl" if not is_gz else f"{self.barcode}_ocr.jsonl.gz"
+
+        cache_key = f"{bucket_name}:{run_name}/{filename}"
+
+        #
+        # Try to load JSONL from cache
+        #
+        with get_cache() as cache:
+            jsonl_bytes = cache.get(cache_key, None)
+
+        #
+        # Load it from storage otherwise
+        #
+        if jsonl_bytes is None:
+            try:
+                response = get_s3_client().get_object(
+                    Key=f"{run_name}/{filename}",
+                    Bucket=bucket_name,
+                )
+                assert response
+
+                jsonl_bytes = response["Body"].read()
+
+                if is_gz:
+                    jsonl_bytes = gzip.decompress(jsonl_bytes)
+
+                assert jsonl_bytes
+            except Exception as err:
+                raise FileNotFoundError(f"Could not retrieve {filename}") from err
+
+            # Save parsed copy in cache
+            with get_cache() as cache:
+                cache.set(cache_key, jsonl_bytes)
+
+        # Parse jsonl_bytes
+        self.__text_by_page = []
+
+        for json_line in jsonl_bytes.decode("utf-8").split("\n"):
+            if not json_line:
+                continue
+
+            self.__text_by_page.append(json.loads(json_line))
+
+        return self.__text_by_page
+
+    @text_by_page.setter
+    def text_by_page(self, value):
+        self.__text_by_page = value
 
     @property
     def merged_text(self) -> str:
         """
         Returns the full OCR'd text of the current book merged as a single string
         """
-        return "\n".join(self.jsonl_data["text_by_page"])
+        return "\n".join(self.text_by_page)
 
     @property
-    def tarball(self) -> bytes:
+    def metadata(self) -> dict:
         """
-        Retrieves the tarball containg raw data for the current book.
-        Tries to load it from cache if available.
+        Getter for `__metadata`: volume metadata from `books_latest.csv`.
+        Fetches a specific row from `books_latest.csv` based on `self.metadata_csv_offset`.
+        Automatically loads `books_latest.csv` (either from storage or disk cache).
         """
-        book_tgz_name = f"{self.barcode}.tar.gz"
+        # Populate `__book_csv_headers` memory cache if not set
+        if not BookIO.__book_csv_headers:
+            with BookIO.get_collection_csv() as csv_file:
+                headers = csv_file.readline().decode("utf-8").rstrip("\n")
+                BookIO.__book_csv_headers = csv.reader([headers]).__next__()
+
+        # Retrieve targeted row
+        if not self.__metadata and self.metadata_csv_offset:
+            with BookIO.get_collection_csv() as csv_file:
+                csv_file.seek(self.metadata_csv_offset)
+                csv_line = csv_file.readline().decode("utf-8").rstrip("\n")
+
+                metadata = csv.DictReader([csv_line], BookIO.__book_csv_headers).__next__()
+                self.__metadata = metadata
+
+        return self.__metadata
+
+    @metadata.setter
+    def metadata(self, value):
+        self.__metadata = value
+
+    @property
+    def tarball(self) -> BytesIO:
+        """
+        Retrieves the tarball containg raw data for the current volume.
+        Tries to load it from disk cache if available.
+        """
+        if self.archive_is_available == False:
+            return None
+
         book_tgz_bytes = None
 
-        #
+        run_name = os.getenv("GRIN_DATA_RUN_NAME")
+        bucket_name = os.getenv("GRIN_DATA_RAW_BUCKET")
+        filename = f"{self.barcode}.tar.gz"
+
+        cache_key = f"{bucket_name}:{run_name}/{filename}"
+
         # Look for tarball in cache
-        #
         with get_cache() as cache:
-            book_tgz_bytes = cache.get(book_tgz_name, None)
+            try:
+                return cache.read(cache_key)
+            except KeyError:
+                pass
 
-            if book_tgz_bytes:
-                return book_tgz_bytes
-
-        #
-        # Load tarball from R2 otherwise
-        #
-
-        # Determine bucket based on tranche info
-        bucket_name = GRIN_TO_S3_TRANCHES_TO_BUCKET_NAMES[self.tranche]
-        bucket_name = bucket_name.replace("gbooks-", "gbooks-raw-")  # This is "raw" bucket
-
-        # Load object from R2
+        # Load tarball from cloud storage otherwise
         try:
-            book_tgz_bytes = get_s3_client().get_object(
-                Key=f"{GRIN_TO_S3_BUCKET_VERSION_PREFIX}/{book_tgz_name}",
+            response = get_s3_client().get_object(
+                Key=f"{run_name}/{filename}",
                 Bucket=bucket_name,
             )
-            assert book_tgz_bytes
+            assert response
 
-            book_tgz_bytes = book_tgz_bytes["Body"].read()
+            book_tgz_bytes = response["Body"].read()
             assert book_tgz_bytes
         except Exception as err:
-            raise FileNotFoundError(f"Could not find raw data for barcode {self.barcode}") from err
+            raise FileNotFoundError(f"Could not retrieve {filename}") from err
 
         # Save copy in cache
         with get_cache() as cache:
-            cache.set(book_tgz_name, book_tgz_bytes)
+            cache.set(filename, book_tgz_bytes)
 
-        return book_tgz_bytes
+        return BytesIO(book_tgz_bytes)
 
     @property
-    def raw_data(self) -> BookRawData:
+    def parsed_tarball(self) -> BookTarballData | None:
         """
-        Parses the tarball containing raw data for the current book and returns a BookRawData object.
+        Parses the tarball containing raw data for the current book and returns a BookTarballData object.
         """
-        # If available, return copy already present in memory
-        if self.__raw_data:
-            return self.raw_data
+        if self.archive_is_available == False:
+            return None
 
-        book_tgz_bytes = self.tarball
+        # If available, return copy already loaded in memory
+        if self.__parsed_tarball:
+            return self.__parsed_tarball
+
         images = []
         hocr = []
         text = []
         gxml = []
         md5 = []
 
-        with tarfile.open(fileobj=BytesIO(book_tgz_bytes), mode="r:gz") as tar:
+        #
+        # Load tarball from cache or remote storage
+        #
+
+        #
+        with tarfile.open(fileobj=self.tarball, mode="r:gz") as tar:
             # sorted_members = sorted(tar.getmembers(), key=lambda m: m.name)
             # [!] This assumes members are listed by alphabetical order
             for member in tar.getmembers():
@@ -265,7 +285,7 @@ class BookIO(peewee.Model):
         assert len(md5) == (len(text) + len(hocr) + len(images)) + 1
         assert gxml
 
-        self.__raw_data = BookRawData(
+        self.__parsed_tarball = BookTarballData(
             images=images,
             hocr=hocr,
             text=text,
@@ -273,19 +293,19 @@ class BookIO(peewee.Model):
             md5=md5,
         )
 
-        return self.__raw_data
+        return self.__parsed_tarball
 
     @property
     def postprocessed_ocr(self) -> dict:
         """
-        Getter for __postprocessed_ocr.
+        Getter for `__postprocessed_ocr`.
         Automatically loads post-processed OCR data from disk if available.
         """
         # Return instance already available in-memory, if any
         if self.__postprocessed_ocr:
             return self.__postprocessed_ocr
 
-        input_filepath = Path(OUTPUT_OCR_POSTPROCESSING_DIR_PATH, f"{self.barcode}.json")
+        input_filepath = Path(OCR_POSTPROCESSING_DIR_PATH, f"{self.barcode}.json")
         data = None
 
         # Check that file exists and load / parse it
@@ -305,7 +325,7 @@ class BookIO(peewee.Model):
             raise ValueError("Invalid data format.") from err
 
         # Check page count
-        if len(data["text_by_page"]) != int(self.csv_data["Page Count"]):
+        if len(data["text_by_page"]) != len(self.text_by_page):
             raise ValueError("Invalid page count.")
 
         self.__postprocessed_ocr = data
@@ -325,7 +345,7 @@ class BookIO(peewee.Model):
         - If the length of "text_by_page" doesn't match the book's page count.
 
         Saved as:
-        - `OUTPUT_OCR_POSTPROCESSING_DIR_PATH/barcode.json`
+        - `{OCR_POSTPROCESSING_DIR_PATH}/barcode.json`
         """
         from models.ocr_postprocessing_training_dataset import TARGET_TYPES
 
@@ -347,14 +367,59 @@ class BookIO(peewee.Model):
             raise ValueError("Invalid data format.") from err
 
         # Check page count
-        if len(input["text_by_page"]) != int(self.csv_data["Page Count"]):
+        if len(input["text_by_page"]) != len(self.text_by_page):
             raise ValueError("Invalid page count.")
 
         # Store to disk
-        output_filepath = Path(OUTPUT_OCR_POSTPROCESSING_DIR_PATH, f"{self.barcode}.json")
+        output_filepath = Path(OCR_POSTPROCESSING_DIR_PATH, f"{self.barcode}.json")
 
         with open(output_filepath, "wb+") as fd:
             fd.write(orjson.dumps(input))
 
         self.__postprocessed_ocr = input
         return self.__postprocessed_ocr
+
+    @classmethod
+    def get_collection_csv(cls, ignore_cache=False) -> BytesIO:
+        """
+        Retrieves the collection's "books_latest.csv" file from remote storage or cache.
+        """
+        collection_csv_bytes = None
+
+        run_name = os.getenv("GRIN_DATA_RUN_NAME")
+        bucket_name = os.getenv("GRIN_DATA_META_BUCKET")
+        is_gz = os.getenv("GRIN_DATA_META_IS_COMPRESSED", "1") == "1"
+        filename = "books_latest.csv" if not is_gz else "books_latest.csv.gz"
+
+        cache_key = f"{bucket_name}:{run_name}/{filename}"
+
+        # Get CSV from cache if available
+        if not ignore_cache:
+            with get_cache() as cache:
+                try:
+                    return cache.read(cache_key)  # Returns a file descriptor
+                except KeyError:  # Key does not exist
+                    pass
+
+        # Load CSV from remote storage otherwise
+        try:
+            response = get_s3_client().get_object(
+                Key=f"{os.getenv("GRIN_DATA_RUN_NAME", "")}/{filename}",
+                Bucket=os.getenv("GRIN_DATA_META_BUCKET"),
+            )
+            assert response
+
+            collection_csv_bytes = response["Body"].read()
+
+            if is_gz:
+                collection_csv_bytes = gzip.decompress(collection_csv_bytes)
+
+            assert collection_csv_bytes
+        except Exception as err:
+            raise FileNotFoundError(f"Could not retrieve {filename}") from err
+
+        # Save copy in cache
+        with get_cache() as cache:
+            cache.add(cache_key, collection_csv_bytes)
+
+        return BytesIO(collection_csv_bytes)

@@ -1,28 +1,8 @@
-import glob
+import os
 
-import click
+from loguru import logger
 
-from const import OUTPUT_OCR_POSTPROCESSING_DIR_PATH
-
-
-def needs_hathitrust_rights_determination_data(func):
-    """
-    Decorator conditioning the execution of a function to:
-    - The presence of Hathitrust rights determination data in the database.
-    """
-    from models import BookIO, HathitrustRightsDetermination
-
-    def wrapper(*args, **kwargs):
-
-        try:
-            assert BookIO.select().count() == HathitrustRightsDetermination.select().count()
-        except:
-            click.echo("Hathitrust rights determination data is not available.")
-            exit(1)
-
-        return func(*args, **kwargs)
-
-    return wrapper
+from const import OCR_POSTPROCESSING_DIR_PATH
 
 
 def needs_page_count_data(func):
@@ -37,7 +17,7 @@ def needs_page_count_data(func):
         try:
             assert BookIO.select().count() == PageCount.select().count()
         except:
-            click.echo("Page count data is not available.")
+            logger.error("Page count data is not available.")
             exit(1)
 
         return func(*args, **kwargs)
@@ -57,7 +37,7 @@ def needs_text_analysis_data(func):
         try:
             assert BookIO.select().count() == TextAnalysis.select().count()
         except:
-            click.echo("Text analysis data is not available.")
+            logger.error("Text analysis data is not available.")
             exit(1)
 
         return func(*args, **kwargs)
@@ -77,7 +57,7 @@ def needs_main_language_data(func):
         try:
             assert BookIO.select().count() == MainLanguage.select().count()
         except:
-            click.echo("This command needs main language data.")
+            logger.error("This command needs main language data.")
             exit(1)
 
         return func(*args, **kwargs)
@@ -108,7 +88,7 @@ def needs_language_detection_data(func):
             count = LanguageDetection.select().count()
             assert count
         except:
-            click.echo("This command needs language detection data.")
+            logger.error("This command needs language detection data.")
             exit(1)
 
         return func(*args, **kwargs)
@@ -128,7 +108,7 @@ def needs_ocr_quality_data(func):
         try:
             assert BookIO.select().count() == OCRQuality.select().count()
         except:
-            click.echo("This command needs OCR quality data.")
+            logger.error("This command needs OCR quality data.")
             exit(1)
 
         return func(*args, **kwargs)
@@ -148,7 +128,28 @@ def needs_scanned_text_simhash_data(func):
         try:
             assert BookIO.select().count() == ScannedTextSimhash.select().count()
         except:
-            click.echo("This command needs scanned text simhash data.")
+            logger.error("This command needs scanned text simhash data.")
+            exit(1)
+
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def needs_hathitrust_collection_prefix(func):
+    """
+    Decorator conditioning the execution of a function to:
+    The presence and validity of the HATHITRUST_COLLECTION_PREFIX env var.
+    """
+
+    def wrapper(*args, **kwargs):
+
+        try:
+            ht_collection_prefix = os.getenv("HATHITRUST_COLLECTION_PREFIX", None)
+            assert ht_collection_prefix is not None
+            assert len(str(ht_collection_prefix)) == 3
+        except:
+            logger.error("HATHITRUST_COLLECTION_PREFIX env var must be set.")
             exit(1)
 
         return func(*args, **kwargs)
@@ -185,20 +186,20 @@ def needs_everything(func):
         book_count = BookIO.select().count()
 
         if not book_count:
-            click.echo("No books available.")
+            logger.error("No books available.")
             exit(1)
 
         # Database records check
         try:
             assert book_count == GenreClassification.select().count()
         except:
-            click.echo("Genre classification data is missing.")
+            logger.error("Genre classification data is missing.")
             exit(1)
 
         try:
             assert book_count == HathitrustRightsDetermination.select().count()
         except:
-            click.echo("Hathitrust rights determination data is missing.")
+            logger.error("Hathitrust rights determination data is missing.")
             exit(1)
 
         try:
@@ -209,19 +210,19 @@ def needs_everything(func):
                 .count()
             )
         except:
-            click.echo("Main language data is missing.")
+            logger.error("Main language data is missing.")
             exit(1)
 
         try:
             assert LanguageDetection.select().count() > book_count
         except:
-            click.echo("Language detection data is missing.")
+            logger.error("Language detection data is missing.")
             exit(1)
 
         try:
             assert OCRPostprocessingTrainingDataset.select().count()
         except:
-            click.echo("OCR Post processing dataset data is missing.")
+            logger.error("OCR Post processing dataset data is missing.")
             exit(1)
 
         try:
@@ -229,39 +230,38 @@ def needs_everything(func):
             assert OCRQuality.select().where(OCRQuality.from_metadata.is_null(False)).count()
             assert OCRQuality.select().where(OCRQuality.from_detection.is_null(False)).count()
         except:
-            click.echo("OCR quality data is missing.")
+            logger.error("OCR quality data is missing.")
             exit(1)
 
         try:
             assert book_count == PageCount.select().count()
-            assert PageCount.select().where(PageCount.count_from_metadata.is_null(False)).count()
             assert PageCount.select().where(PageCount.count_from_ocr.is_null(False)).count()
         except:
-            click.echo("Page count data is missing.")
+            logger.error("Page count data is missing.")
             exit(1)
 
         try:
             assert book_count == ScannedTextSimhash.select().count()
         except:
-            click.echo("Scanned text simhash data is missing.")
+            logger.error("Scanned text simhash data is missing.")
             exit(1)
 
         try:
             assert book_count == TextAnalysis.select().count()
         except:
-            click.echo("Text analysis data is missing.")
+            logger.error("Text analysis data is missing.")
             exit(1)
 
         try:
             assert TokenCount.select().count() > book_count
         except:
-            click.echo("Token count data is missing.")
+            logger.error("Token count data is missing.")
             exit(1)
 
         try:
             assert TopicClassificationTrainingDataset.select().count()
         except:
-            click.echo("Topic classification training dataset data is missing.")
+            logger.error("Topic classification training dataset data is missing.")
             exit(1)
 
         try:
@@ -277,21 +277,21 @@ def needs_everything(func):
                 .count()
             )
         except:
-            click.echo("Topic classification data is missing.")
+            logger.error("Topic classification data is missing.")
             exit(1)
 
         try:
             assert book_count == YearOfPublication.select().count()
         except:
-            click.echo("Year of publication data is missing.")
+            logger.error("Year of publication data is missing.")
             exit(1)
 
         # Check presence of local files
         """
         try:
-            assert len(glob.glob(f"{OUTPUT_OCR_POSTPROCESSING_DIR_PATH}/*.json")) > 0
+            assert len(glob.glob(f"{OCR_POSTPROCESSING_DIR_PATH}/*.json")) > 0
         except:
-            click.echo("OCR postprocessing data is missing.")
+            logger.error("OCR postprocessing data is missing.")
             exit(1)
         """
 

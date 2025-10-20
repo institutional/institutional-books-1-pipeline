@@ -1,4 +1,5 @@
 import click
+from loguru import logger
 
 import utils
 from models import BookIO, PageCount
@@ -39,7 +40,7 @@ def extract_page_count(
 ):
     """
     Extracts the page count of each book, both:
-    - as expressed in the collection's metadata (`Page Count` via `book.csv_data`).
+    - as expressed in the collection's metadata (`Page Count` via `book.metadata`).
     - from the total of available pages in the OCR'd text.
 
     Notes:
@@ -47,7 +48,7 @@ def extract_page_count(
     """
     entries_to_create = []
     entries_to_update = []
-    fields_to_update = [PageCount.count_from_ocr, PageCount.count_from_metadata]
+    fields_to_update = [PageCount.count_from_ocr]
 
     for book in BookIO.select().offset(offset).limit(limit).order_by(BookIO.barcode).iterator():
         page_count = None
@@ -62,7 +63,7 @@ def extract_page_count(
             already_exists = True
 
             if already_exists and not overwrite:
-                click.echo(f"⏭️ #{book.barcode} page count already exists.")
+                logger.info(f"#{book.barcode} page count already exists")
                 continue
         except Exception:
             pass
@@ -71,14 +72,8 @@ def extract_page_count(
         page_count = PageCount() if not already_exists else page_count
         page_count.book = book.barcode
         page_count.count_from_ocr = len(book.text_by_page)
-        page_count.count_from_metadata = 0
 
-        try:
-            page_count.count_from_metadata = int(book.csv_data["Page Count"])
-        except:
-            pass
-
-        click.echo(f"🧮 #{book.barcode} = {page_count.count_from_ocr} pages.")
+        logger.info(f"#{book.barcode} = {page_count.count_from_ocr} pages")
 
         # Add to batch
         if already_exists:

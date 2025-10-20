@@ -1,4 +1,5 @@
 import click
+from loguru import logger
 
 import utils
 from models import BookIO, TopicClassification
@@ -41,7 +42,7 @@ def extract_topic_classification_from_metadata(
     Collects topic/subject classification data for each book from the collection's metadata.
 
     Notes:
-    - Extracted from `gxml Subject Added Entry-Topical Term` (via `book.csv_data`).
+    - Extracted from `MARC Subjects` (via `book.metadata`).
     - Skips entries that were already analyzed, unless instructed otherwise.
     """
     entries_to_create = []
@@ -65,7 +66,7 @@ def extract_topic_classification_from_metadata(
             already_exists = True
 
             if already_exists and not overwrite:
-                click.echo(f"⏭️ #{book.barcode} already analyzed.")
+                logger.info(f"#{book.barcode} already analyzed")
                 continue
         except Exception:
             pass
@@ -73,15 +74,15 @@ def extract_topic_classification_from_metadata(
         # Prepare record
         topic_classification = TopicClassification() if not already_exists else topic_classification
         topic_classification.book = book.barcode
-        topic_classification.metadata_source = "gxml Subject Added Entry-Topical Term"
+        topic_classification.metadata_source = "MARC Subjects"
 
-        from_metadata = book.csv_data["gxml Subject Added Entry-Topical Term"]
+        from_metadata = book.metadata["MARC Subjects"]
 
         if from_metadata.strip():
             topic_classification.from_metadata = from_metadata
-            click.echo(f"🧮 #{book.barcode} = {from_metadata} (metadata)")
+            logger.info(f"#{book.barcode} = {from_metadata} (metadata)")
         else:
-            click.echo(f"🧮 #{book.barcode} - no valid topic/subject info.")
+            logger.warning(f"#{book.barcode} - no valid topic/subject info")
 
         # Add to batch
         if already_exists:

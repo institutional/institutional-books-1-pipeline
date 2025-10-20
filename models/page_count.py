@@ -27,10 +27,3 @@ class PageCount(peewee.Model):
         index=False,
     )
     """ Total pages in OCR'd text. """
-
-    count_from_metadata = peewee.IntegerField(
-        null=True,
-        unique=False,
-        index=False,
-    )
-    """ Total pages as reported via the collection's metadata. """
